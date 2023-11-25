@@ -28,12 +28,20 @@ class Deck:
     # Begins or restart a deck restarting the cards. The cards aren't shuffle 
     def createDeck(self) -> None:
         self.cards.clear()
-        self.cards = [Card(value, kind) for value in Card.values for kind in Card.kinds]
+        self.cards = [Card(value, kind) for value in Card.values.keys() for kind in Card.kinds]
 
 
 if __name__ == "__main__":
     deck = Deck()
     deck.shuffle()
 
-    myCards = [deck.distributeCards() for _ in range(2)]
+    myCards = deck.distributeCards(5)
 
+    for c in myCards:
+        c.printCard()
+
+    myCards.sort(key = lambda card : card.getWeight())
+    print("="*15)
+    for c in myCards:
+        c.printCard()
+    

@@ -43,7 +43,7 @@ class Match:
         newComunityCards = self.deck.distributeCards(totalNewComunnityCards)
         self.communityCards.append(newComunityCards)
     
-    def startGame(self):
+    def startGame(self) -> None:
         self.initalTime = self.getCurrentTimestamp()
         self.executeGame()
         self.deck.shuffle()
