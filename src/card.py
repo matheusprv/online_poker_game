@@ -6,5 +6,5 @@ class Card:
         self.kind = kind
         self.value = value
 
-    def print_card(self):
+    def printCard(self):
         print("%2s %s " % (self.value, self.kind))
