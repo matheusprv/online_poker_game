@@ -19,14 +19,14 @@ class Deck:
         for card in cards_to_return:
             self.cards.append(card)
 
-    def print_deck(self):
+    def print_deck(self) -> None:
         print("Number of cards on deck: " + str(len(self.cards)))
         for card in self.cards:
             card.print_card()
 
     
     # Begins or restart a deck restarting the cards. The cards aren't shuffle 
-    def clear_deck(self):
+    def clear_deck(self) -> None:
         self.cards.clear()
         self.cards = [Card(value, kind) for value in Card.values for kind in Card.kinds]
 
