@@ -13,6 +13,8 @@ class Player:
         self.chips = chips
         self.wins = 0
         self.defeats = 0
+        self.active = True
+        self.gameFunction = None
 
         currentGMT = time.gmtime()
         timeStamp = calendar.timegm(currentGMT)
@@ -21,7 +23,7 @@ class Player:
     def setActive(self, active) -> None:
         self.active = active
 
-    def getActive(self) -> bool:
+    def isActive(self) -> bool:
         return self.active
     
     # 1: small blind, 2: big blind, 3: normal
@@ -48,6 +50,11 @@ class Player:
     
     def getCards(self) -> list[Card]:
         return self.cards
+
+    def retriveCards(self) ->list[Card]:
+        cards = [self.getCards().pop() for _ in len(self.getCards())]
+        return cards
+
 
     def getName(self) -> str:
         return self.name
