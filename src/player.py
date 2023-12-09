@@ -8,7 +8,7 @@ class Player:
     def __init__(self, name, chips=1000) -> None:
         self.name = name
         self.cards = []
-        self.selectedCommunityCards = []
+        self.selectedCards = []
         self.cardsPoints = 0
         self.chips = chips
         self.wins = 0
@@ -52,9 +52,14 @@ class Player:
         return self.cards
 
     def retriveCards(self) ->list[Card]:
-        cards = [self.getCards().pop() for _ in len(self.getCards())]
+        cards = [self.getCards().pop() for _ in range(len(self.getCards()))]
         return cards
 
+    def addSelectedCard(self, card) -> None:
+        self.selectedCards.append(card)
+
+    def resetSelectedCards(self) -> None:
+        self.selectedCards = []
 
     def getName(self) -> str:
         return self.name
@@ -65,16 +70,18 @@ class Player:
     def setChips(self, chips) -> None:
         self.chips = chips
 
+    def getChips(self) -> int:
+        return self.chips
+
     def resetPlayer(self) -> None:
         self.wins = 0
         self.defeats = 0
         self.cardsPoints = 0
         self.cards = []
-        self.selectedCommunityCards = []
+        self.selectedCards = []
 
     def sortCards(self, cards) -> list[Card]:
         return sorted(cards, key = lambda card : card.getWeight())
-
 
     def checkSameKind(self, cards) -> bool:        
         kind = cards[0].getKind()
@@ -82,13 +89,11 @@ class Player:
             if card.getKind() != kind:
                 return False
         return True
-    
 
     def checkSequential(self, cards) -> bool:
         #knowing that cards are sorted, we know if they are sequential if the last weight is equal to the first +4
         idealLastWeight = cards[0].getWeight() + 4
         return (cards[-1].getWeight() == idealLastWeight)
-
 
     def checkSameValue(self, cards) -> {}:
         #check if we have n cards with the same value
@@ -100,10 +105,9 @@ class Player:
 
         return countSameValues
 
-
     def countCardsPoints(self) -> int:
 
-        cards = self.cards + self.selectedCommunityCards        
+        cards = self.selectedCards        
         points = sum(card.getWeight() for card in cards)
 
         cards = self.sortCards(cards)
