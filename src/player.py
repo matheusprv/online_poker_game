@@ -3,9 +3,8 @@ from card import Card
 import calendar
 import time
 
-
 class Player:
-    def __init__(self, name, chips=1000) -> None:
+    def __init__(self, name, playerSocket = None, chips=1000) -> None:
         self.name = name
         self.cards = []
         self.selectedCards = []
@@ -15,6 +14,9 @@ class Player:
         self.defeats = 0
         self.active = True
         self.gameFunction = None
+        self.ready = False
+
+        self.playerSocket = playerSocket
 
         currentGMT = time.gmtime()
         timeStamp = calendar.timegm(currentGMT)
@@ -26,6 +28,12 @@ class Player:
     def isActive(self) -> bool:
         return self.active
     
+    def getSocket(self):
+        return self.playerSocket
+    
+    def setSocket(self, playerSocket):
+        self.playerSocket = playerSocket
+
     # 1: small blind, 2: big blind, 3: normal
     def setFunction(self, gameFunction) -> None:
         self.gameFunction = gameFunction
@@ -44,6 +52,15 @@ class Player:
 
     def getDefeats(self) -> int:
         return self.defeats
+    
+    def setReady(self, ready) -> None:
+        self.ready = ready
+
+    def getReady(self) -> bool:
+        return self.ready
+    
+    def getId(self) -> str:
+        return self.id
     
     def setCards(self, cards) -> None:
         self.cards = cards

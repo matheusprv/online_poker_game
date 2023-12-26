@@ -25,6 +25,9 @@ class Card:
     def printCard(self):
         print("%2s %s " % (self.value, self.kind))
 
+    def stringCard(self) -> str:
+        return "%2s %s " % (self.value, self.kind)
+
     def getWeight(self):
         return self.values[self.value]
     
