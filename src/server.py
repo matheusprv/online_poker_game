@@ -52,7 +52,7 @@ def conexao(playerSocket, match):
 
     # Esperando pelo pronto ou quit
     # Pronto
-    if receiveReadyQuit:
+    if receiveReadyQuit(playerSocket):
         player.setReady(True)
     
     # Quit
@@ -75,13 +75,14 @@ def connectClients(main_socket, match):
     while len(sockets_ids) < MAXIMUN_NUMBER_OF_PLAYERS:
         print("Esperando conexão")
 
-        new_socket, addr = main_socket.accept()
+        new_socket, _ = main_socket.accept()
 
         with mutex:
             # The game has alredy began, so the new player can't enter
             if(match.isInProgress()): break
 
             sockets_ids.append(new_socket)
+            global current_number_of_players 
             current_number_of_players += 1
 
             thread = threading.Thread(target=conexao, args=(new_socket, match))

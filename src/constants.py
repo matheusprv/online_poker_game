@@ -1,19 +1,10 @@
 import socket
 import json
 
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 4096
 
 PORT = 7891
-SERVER = socket.hostbyname(socket.gethostname())
+SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 
 FORMAT = 'utf-8'
-
-"""
-dict_msg = {
-    userId
-    name
-    action
-    msgServer
-}
-"""

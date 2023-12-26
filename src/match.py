@@ -2,6 +2,7 @@ from deck import Deck
 
 import calendar
 import time
+from time import sleep
 from copy import copy
 
 from constants import *
@@ -112,6 +113,11 @@ class Match:
 
 
     def checkReadyPlayers(self) -> bool:
+        print(f"Checando {len(self.getPlayers())} jogadores")
+        
+        if(len(self.getPlayers())) == 0:
+            return False
+
         for player in self.getPlayers():
             if player.getReady() == False:
                 return False
@@ -211,11 +217,14 @@ class Match:
 
         for p in self.getPlayers():
             p.getSocket().sendall(msg)
+            sleep(0.5)
         
 
     def recvMessage(self, player) -> str:
-        buffer = player.getSocket().recv(BUFFER_SIZE).decode(FORMAT)
-        return buffer
+        while True:
+            buffer = player.getSocket().recv(BUFFER_SIZE).decode(FORMAT)
+            if buffer:
+                return buffer
 
     def executeGame(self, roundCounter) -> None:
         self.setInProgress(True)
@@ -261,6 +270,7 @@ class Match:
         self.addPlay(player=player, action=f"Aposta:{betSB}")
 
         #Distribute cards
+        print("Distribuindo cartas")
         position = positionSB
         for _ in range(0, totalPlayers):
             player = players[position % totalPlayers]
@@ -269,7 +279,7 @@ class Match:
 
             cardMessage = f"{player.getName()}"
             for card in player.getCards():
-                cardMessage += "\n" + card.stringMessage()
+                cardMessage += "\n" + card.stringCard()
 
             self.sendMessage(player, privateMsg=cardMessage)
 
