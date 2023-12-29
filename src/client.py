@@ -42,11 +42,9 @@ def playMatch(client_socket):
             if buffer:
                 break
 
-        print(buffer)
-
-        buffers = buffer.split("}")
-        for b in buffers:
-            print(b, end='\n\n=============\n')
+        # print("="*50)
+        # print(buffer)
+        # print("="*50)
 
         receivedData = json.loads(buffer)
 
@@ -59,7 +57,7 @@ def playMatch(client_socket):
             msg = msg.encode(FORMAT)
             client_socket.sendall(msg)
         
-        else:
+        elif receivedData["userId"] != "":
             print('Esperando o próximo jogador')
 
 

@@ -124,87 +124,6 @@ class Match:
             
         return True
 
-    def betRound(self, countBetRound, position, positionBB, positionSB, bet, betBB, betSB) -> None:
-        players = self.getPlayers()
-        totalPlayers = len(players)
-
-        for _ in range(0, totalPlayers):
-            player = players[position]
-            if(player.isActive()):
-
-                # The player will make a decision to what he is going to do
-                # If the action is to raise, but the player doesn't have enough chips, it will go to pay and will do an All-In
-                action = '_'
-                validActions = ['f', 'p', 'r']
-                actionsText = f"{player.getName()} - Ações: \nF - Fold \nP - Pagar \nR - Aumentar"
-
-                minimunBet = bet 
-
-                if countBetRound == 1:
-                    if position == positionBB: minimunBet = bet - betBB 
-                    elif position == positionSB: minimunBet = bet - betSB 
-
-                # If the user is BigBlind, he can check if the bet didn't raise                
-                if (position == positionBB and bet == betBB) or (countBetRound > 1 and bet == 0):
-                    validActions.append('c')
-                    actionsText += "\nC - Check"
-
-                # Loop until the user enters a valid action
-                while(action not in validActions):
-                    self.sendMessage(player, privateMsg=actionsText+"\nOpção: ")
-                    action = self.recvMessage(player).lower()
-                    
-                    if(action == 'r' and player.getChips() <= bet): action = 'p'
-
-                if action == "f":
-                    # The player retrive the cards to the deck and become inactive
-                    self.deck.returnCard(player.retriveCards())
-                    player.setActive(False)
-                    self.addPlay(player, "Fold")
-
-                elif action == "p":
-                    #Pay the bet or go All-In
-                    if player.getChips() - minimunBet >= 0:
-                        player.setChips(player.getChips() - minimunBet)
-                        self.addToBucket(minimunBet)
-                    else:
-                        self.addToBucket(player.getChips())
-                        minimunBet = player.getChips()
-                        player.setChips(0)
-                    self.addPlay(player, f"Pagar:{minimunBet}")
-                    
-                elif action == "r":
-                    #Put the higher value than the current bet
-                    while 1:
-                        self.sendMessage(player, f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ")
-                        bet_temp = int(self.recvMessage(player))
-                        
-                        if player.getChips() - bet_temp >= 0 and bet_temp >= minimunBet:
-                            player.setChips(player.getChips() - bet_temp)
-                            break
-                        else:
-                            self.sendMessage(player, privateMsg="Valor inválido da aposta")
-                            
-                    bet += bet_temp
-                    self.addToBucket(bet_temp)
-                    self.addPlay(player, f"Raise(Aumentar):{bet_temp}")
-                
-                self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
-    
-            position = (position + 1) % totalPlayers    
-
-
-    def startGame(self) -> None:
-        self.initalTime = self.getCurrentTimestamp()
-        self.deck.shuffle()
-        
-        roundCounter = 1
-        while len(self.getPlayers()) > 1:
-            self.executeGame(roundCounter)
-            self.setInProgress(False)
-            roundCounter += 1
-
-
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "") -> None:
         playerId = player.getId() if player != None else ""
         messageDict = {
@@ -216,9 +135,7 @@ class Match:
         msg = json.dumps(messageDict).encode(FORMAT)
 
         for p in self.getPlayers():
-            p.getSocket().sendall(msg)
-            sleep(0.5)
-        
+            p.getSocket().sendall(msg)        
 
     def recvMessage(self, player) -> str:
         while True:
@@ -226,16 +143,16 @@ class Match:
             if buffer:
                 return buffer
 
-    def executeGame(self, roundCounter) -> None:
-        self.setInProgress(True)
+    """
+        Make Big blind and small blind bets
+        
+        bet : Value of the current bet
+        betBB : Big Blind bet
+        betSB : Small Blind bet
+    """
+    def blindBet(self, positionSB, positionBB):
         players = self.getPlayers()
-        totalPlayers = len(players)
-
-        #Defining who is going to be big blind and who is going to be the samll blind
-        positionSB = roundCounter % totalPlayers
-        positionBB = (positionSB + 1) % totalPlayers
-
-        #Big Blind define the bet
+        
         bet = 0
         player = None
         while 1:
@@ -253,7 +170,7 @@ class Match:
         betBB = bet
         self.addToBucket(bet)
         self.addPlay(player=player, action=f"Aposta:{bet}")
-        self.sendMessage(privateMsg = f"Jogador {player.getName()} apostou {bet} fichas.")
+        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {bet} fichas.")
 
         # Making small blind bet
         betSB = betBB // 2
@@ -269,89 +186,123 @@ class Match:
         
         self.addPlay(player=player, action=f"Aposta:{betSB}")
 
-        #Distribute cards
-        print("Distribuindo cartas")
+        return bet, betBB, betSB
+
+    """
+        Make all player's bet
+    """
+    def betRound(self, countBetRound, position, positionBB, positionSB, bet, betBB, betSB) -> None:
+        players = self.getPlayers()
+        totalPlayers = len(players)
+
+        for _ in range(0, totalPlayers):
+            player = players[position]
+            
+            if(not player.isActive()): continue
+
+            print(f"{player.getName()} fazendo a aposta")
+
+            # The player will make a decision to what he is going to do
+            # If the action is to raise, but the player doesn't have enough chips, it will go to pay and will do an All-In
+            action = '_'
+            validActions = ['f', 'p', 'r']
+            actionsText = f"{player.getName()} - Ações: \nF - Fold \nP - Pagar \nR - Aumentar"
+
+            minimunBet = bet 
+
+            if countBetRound == 1:
+                if position == positionBB: minimunBet = bet - betBB 
+                elif position == positionSB: minimunBet = bet - betSB 
+
+            # If the user is BigBlind, he can check if the bet didn't raise                
+            if (position == positionBB and bet == betBB) or (countBetRound > 1 and bet == 0):
+                validActions.append('c')
+                actionsText += "\nC - Check"
+
+            # Loop until the user enters a valid action
+            while(action not in validActions):
+                self.sendMessage(player, privateMsg=actionsText+"\nOpção: ")
+                action = self.recvMessage(player).lower()
+                
+                if(action == 'r' and player.getChips() <= bet): action = 'p'
+
+            if action == "f":
+                # The player retrive the cards to the deck and become inactive
+                self.deck.returnCard(player.retriveCards())
+                player.setActive(False)
+                self.addPlay(player, "Fold")
+
+            elif action == "p":
+                #Pay the bet or go All-In
+                if player.getChips() - minimunBet >= 0:
+                    player.setChips(player.getChips() - minimunBet)
+                    self.addToBucket(minimunBet)
+                else:
+                    self.addToBucket(player.getChips())
+                    minimunBet = player.getChips()
+                    player.setChips(0)
+                self.addPlay(player, f"Pagar:{minimunBet}")
+                
+            elif action == "r":
+                #Put the higher value than the current bet
+                while 1:
+                    self.sendMessage(player, f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ")
+                    bet_temp = int(self.recvMessage(player))
+                    
+                    if player.getChips() - bet_temp >= 0 and bet_temp >= minimunBet:
+                        player.setChips(player.getChips() - bet_temp)
+                        break
+                    else:
+                        self.sendMessage(player, privateMsg="Valor inválido da aposta")
+                        
+                bet += bet_temp
+                self.addToBucket(bet_temp)
+                self.addPlay(player, f"Raise(Aumentar):{bet_temp}")
+                
+                self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
+    
+            position = (position + 1) % totalPlayers    
+
+    """
+        Check if there is only one active player, if so, then it will receive the chips of the bucket
+        Return True if the match is finished. False otherwise
+    """
+    def checkTotalActivePlayers(self):
+        totalActive, player = self.totalActivePlayers()
+        if totalActive == 1:
+            player.setChips(player.getChips() + self.bucket)
+            self.sendMessage(public = f"Ganhador: {player.getName()}")
+            self.resetTable()
+            return True
+        
+        return False
+
+    """
+        Distribute the initial cards among the players
+    """
+    def distributeCards(self, positionSB):
+        players = self.getPlayers()
+        totalPlayers = len(players)
+        
         position = positionSB
         for _ in range(0, totalPlayers):
             player = players[position % totalPlayers]
             player.setCards(self.deck.distributeCards(2))
             position += 1
 
-            cardMessage = f"{player.getName()}"
+            cardMessage = f"Cartas de {player.getName()}"
             for card in player.getCards():
                 cardMessage += "\n" + card.stringCard()
-
+            
+            cardMessage += '\n'
             self.sendMessage(player, privateMsg=cardMessage)
 
-        #First bet round
-        position = (positionBB + 1)  % totalPlayers
-        self.betRound(1, position, positionBB, positionSB, bet, betBB, betSB)
-
-        # Check if there is only one active player, if so, then it will receive the chips of the bucket
-        totalActive, player = self.totalActivePlayers()
-        if totalActive == 1:
-            player.setChips(player.getChips() + self.bucket)
-            self.sendMessage(publicMsg = f"Ganhador: {player.getName()}")
-            self.resetTable()
-            return
-
-        #Second bet round
-        position = positionSB
-        #flop - shows three community cards on the table
-        self.flop_turn_river()
-        
-        communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()
-        self.sendMessage(publicMsg = communityCardsMessage)
-
-        self.betRound(2, position, positionBB, positionSB, 0, betBB, betSB)
-
-        # Check if there is only one active player, if so, then it will receive the chips of the bucket
-        totalActive, player = self.totalActivePlayers()
-        if totalActive == 1:
-            player.setChips(player.getChips() + self.bucket)
-            self.sendMessage(public = f"Ganhador: {player.getName()}")
-            self.resetTable()
-            return
-            
-        #Third bet round
-        #turn - show the 4th community card
-        self.flop_turn_river()
-
-        communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()
-        self.sendMessage(publicMsg = communityCardsMessage)
-
-        self.betRound(3, position, positionBB, positionSB, 0, betBB, betSB)
-        
-        # Check if there is only one active player, if so, then it will receive the chips of the bucket
-        totalActive, player = self.totalActivePlayers()
-        if totalActive == 1:
-            player.setChips(player.getChips() + self.bucket)
-            self.sendMessage(public = f"Ganhador: {player.getName()}")
-            self.resetTable()
-            return
-        
-        #Fourth bet round
-        #river - show the 5th community card
-        self.flop_turn_river()
-
-        communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()
-        self.sendMessage(publicMsg = communityCardsMessage)
-        
-        self.betRound(4, position, positionBB, positionSB, 0, betBB, betSB)
-
-        # Check if there is only one active player, if so, then it will receive the chips of the bucket
-        totalActive, player = self.totalActivePlayers()
-        if totalActive == 1:
-            player.setChips(player.getChips() + self.bucket)
-            self.resetTable()
-            self.sendMessage(public = f"Ganhador: {player.getName()}")
-            return
-
-        #choosing the 5 card hand
-        for player in players:
-
+    """
+        The player will choose the five cards that will compose his hand
+    """
+    def chooseFiveCards(self):
+        for player in self.getPlayers():
             self.sendMessage(player, publicMsg= self.strFinalCards(player))
-
             selectedCards = []
 
             #Making the user select five different cards
@@ -374,9 +325,13 @@ class Match:
                 else:
                     selected -= 3 #-1 from user input and -2 due to the player's cards 
                     card = copy(self.communityCards[selected])
-                    player.addSelectedCard(card)
+                    player.addSelectedCard(card)     
 
-        # Check what is the player with the highest pontuation
+    """
+        Check what player had the better cards and is the winner
+    """
+    def checkWinner(self):
+        players = self.getPlayers()
         winner = players[0]
         winnerCardPoints = winner.countCardsPoints()
 
@@ -391,4 +346,72 @@ class Match:
 
         self.sendMessage(public = f"Ganhador: {player.getName()}")
 
+
+    def startGame(self) -> None:
+        self.initalTime = self.getCurrentTimestamp()
+        self.deck.shuffle()
+        
+        roundCounter = 1
+        while len(self.getPlayers()) > 1:
+            self.executeGame(roundCounter)
+            self.setInProgress(False)
+            roundCounter += 1
+
+    """
+        Execute a gaming round
+    """
+    def executeGame(self, roundCounter) -> None:
+        self.setInProgress(True)
+        players = self.getPlayers()
+        totalPlayers = len(players)
+
+        #Defining who is going to be big blind and who is going to be the samll blind
+        positionSB = roundCounter % totalPlayers
+        positionBB = (positionSB + 1) % totalPlayers
+
+        #make big blind and small blind bets'
+        bet, betBB, betSB = self.blindBet(positionSB, positionBB)
+        print("Blind bets feita")
+
+        #Distribute cards
+        print("Distribuindo cartas")
+        self.distributeCards(positionSB)
+        print("Cartas distribuidas")
+        sleep(0.2)
+
+
+        #First bet round
+        position = (positionBB + 1)  % totalPlayers
+        self.betRound(1, position, positionBB, positionSB, bet, betBB, betSB)
+
+        # Check if there is only one active player, if so, then it will receive the chips of the bucket
+        if self.checkTotalActivePlayers(): return 
+
+        position = positionSB
+
+        """
+            Making all betting rounds
+        """
+        for i in range(2, 4 +1):
+            self.flop_turn_river()
+            
+            communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()
+            self.sendMessage(publicMsg = communityCardsMessage)
+
+            self.betRound(i, position, positionBB, positionSB, 0, betBB, betSB)
+
+            # Check if there is only one active player, if so, then it will receive the chips of the bucket
+            if self.checkTotalActivePlayers(): return 
+
+
+        """
+            Bets finished
+        """
+        #choosing the 5 card hand
+        self.chooseFiveCards()
+
+        # Check what is the player with the highest pontuation
+        self.checkWinner()
+
         self.resetTable()
+
