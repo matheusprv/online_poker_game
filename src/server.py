@@ -92,7 +92,8 @@ def connectClients(main_socket, match):
 
 if __name__ == "__main__":
     main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_addr = ('0.0.0.0', PORT)
+    
+    server_addr = SERVER_ADDR_PORT
     main_socket.bind(server_addr)
 
     match = Match()
@@ -100,7 +101,6 @@ if __name__ == "__main__":
     thread_conexoes = threading.Thread(target=connectClients, args=(main_socket, match))
     thread_conexoes.start()
 
-    #! A thread pode ficar presa no accept, mas todos os jogadores colocaram pronto
     while match.checkReadyPlayers() == False:
         sleep(2)
 
