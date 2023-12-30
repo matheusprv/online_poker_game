@@ -1,3 +1,15 @@
+import sys
+
+
+string = '{"userId": "1703898827Matheus", "publicMsg": "Big Blind Matheus definindo a aposta", "privateMsg": "Matheus - Qual ser\u00e1 o valor da aposta inicial: ", "waitingAnswer": true}{"userId": "1703898827Matheus", "publicMsg": "Big Blind Matheus definindo a aposta", "privateMsg": "Matheus - Qual ser\u00e1 o valor da aposta inicial: ", "waitingAnswer": true}'
+
+splittado = string.split('}')
+
+print(splittado)
+
+sys.exit()
+
+
 from deck import Deck
 from player import Player
 from card import Card

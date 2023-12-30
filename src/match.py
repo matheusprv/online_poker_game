@@ -124,18 +124,21 @@ class Match:
             
         return True
 
-    def sendMessage(self, player = None, publicMsg = "", privateMsg = "") -> None:
+    def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
         playerId = player.getId() if player != None else ""
         messageDict = {
             "userId": playerId,
             "publicMsg" : publicMsg,
-            "privateMsg" : privateMsg
+            "privateMsg" : privateMsg,
+            "waitingAnswer" : waitingAnswer
         }
 
         msg = json.dumps(messageDict).encode(FORMAT)
 
         for p in self.getPlayers():
-            p.getSocket().sendall(msg)        
+            p.getSocket().sendall(msg) 
+        
+        sleep(0.2)       
 
     def recvMessage(self, player) -> str:
         while True:
@@ -158,7 +161,7 @@ class Match:
         while 1:
             player = players[positionBB]
 
-            self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", f"{player.getName()} - Qual será o valor da aposta inicial: ")
+            self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
             bet = int(self.recvMessage(player))
             
             if player.getChips() - bet >= 0:
@@ -221,7 +224,7 @@ class Match:
 
             # Loop until the user enters a valid action
             while(action not in validActions):
-                self.sendMessage(player, privateMsg=actionsText+"\nOpção: ")
+                self.sendMessage(player, privateMsg=actionsText+"\nOpção: ", waitingAnswer=True)
                 action = self.recvMessage(player).lower()
                 
                 if(action == 'r' and player.getChips() <= bet): action = 'p'
@@ -246,7 +249,10 @@ class Match:
             elif action == "r":
                 #Put the higher value than the current bet
                 while 1:
-                    self.sendMessage(player, f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ")
+                    self.sendMessage(
+                        player, 
+                        f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ", 
+                        waitingAnswer=True)
                     bet_temp = int(self.recvMessage(player))
                     
                     if player.getChips() - bet_temp >= 0 and bet_temp >= minimunBet:
@@ -307,11 +313,18 @@ class Match:
 
             #Making the user select five different cards
             for i in range(5):
-                self.sendMessage(player, f"Jogador {player.getName()} selecionando a carta {i+1}.", f"{player.getName()} - Digite o índice da carta que deseja selecionar: ")
+                self.sendMessage(
+                    player, 
+                    f"Jogador {player.getName()} selecionando a carta {i+1}.", f"{player.getName()} - Digite o índice da carta que deseja selecionar: ",
+                    waitingAnswer=True
+                )
                 select = int(self.recvMessage(player))
                 
                 while select in selectedCards:
-                    self.sendMessage(player, privateMsg="Valor já selecionado \nDigite o índice da carta que deseja selecionar: ")
+                    self.sendMessage(player, 
+                                     privateMsg="Valor já selecionado \nDigite o índice da carta que deseja selecionar: ", 
+                                     waitingAnswer=True
+                                     )
                     select = int(self.recvMessage(player))
                 
                 selectedCards.append(select)
@@ -344,7 +357,7 @@ class Match:
         # Give the bucket's chips to the winner
         winner.setChips(winner.getChips() + self.bucket)
 
-        self.sendMessage(public = f"Ganhador: {player.getName()}")
+        self.sendMessage(publicMsg= f"Ganhador: {player.getName()}")
 
 
     def startGame(self) -> None:

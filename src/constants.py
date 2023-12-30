@@ -3,7 +3,7 @@ import json
 
 BUFFER_SIZE = 4096
 
-PORT = 7880
+PORT = 7890
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 

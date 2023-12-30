@@ -30,6 +30,23 @@ def readyQuitMessage(client_socket):
 
     return readyQuit
 
+def handleMessage(receivedData):
+    if(receivedData["publicMsg"] != ""):
+        print(receivedData["publicMsg"])
+
+    # check whose turn it is
+    if receivedData["userId"] == user_id:
+        if(receivedData["waitingAnswer"] == True):
+            msg = input(receivedData["privateMsg"])
+            msg = msg.encode(FORMAT)
+            client_socket.sendall(msg)
+        else:
+            print(receivedData["privateMsg"])
+    
+    elif receivedData["userId"] != "":
+        print('Esperando o próximo jogador')
+
+
 # Play the match 
 def playMatch(client_socket):
     #!ver uma forma de como a funcao vai ser finalizada
@@ -46,19 +63,18 @@ def playMatch(client_socket):
         # print(buffer)
         # print("="*50)
 
-        receivedData = json.loads(buffer)
+        jsons = buffer.split('}')
+        jsons.pop(-1)
+        jsons = [add + '}' for add in jsons]
 
-        if(receivedData["publicMsg"] != ""):
-            print(receivedData["publicMsg"])
+        # print("="*50)
+        # print(jsons)
+        # print("="*50)
 
-        # check whose turn it is
-        if receivedData["userId"] == user_id:
-            msg = input(receivedData["privateMsg"])
-            msg = msg.encode(FORMAT)
-            client_socket.sendall(msg)
-        
-        elif receivedData["userId"] != "":
-            print('Esperando o próximo jogador')
+        for obj in jsons:
+            receivedData = json.loads(obj)
+            handleMessage(receivedData)
+
 
 
 if __name__ == "__main__":
