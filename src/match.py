@@ -13,7 +13,7 @@ class Match:
         currentGmt = time.gmtime()
         return  calendar.timegm(currentGmt)
         
-    def __init__(self) -> None:
+    def __init__(self, sendMessage, recvMessage) -> None:
         self.players = []
         self.plays = []
         self.initalTime = 0
@@ -22,6 +22,10 @@ class Match:
         self.communityCards = []
         self.deck = Deck()
         self.inProgress = False
+
+        self.sendMessage = sendMessage
+        self.recvMessage = recvMessage
+
 
     def getPlayers(self):
         return self.players
@@ -124,27 +128,6 @@ class Match:
             
         return True
 
-    def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
-        playerId = player.getId() if player != None else ""
-        messageDict = {
-            "userId": playerId,
-            "publicMsg" : publicMsg,
-            "privateMsg" : privateMsg,
-            "waitingAnswer" : waitingAnswer
-        }
-
-        msg = json.dumps(messageDict).encode(FORMAT)
-
-        for p in self.getPlayers():
-            p.getSocket().sendall(msg) 
-        
-        sleep(0.2)       
-
-    def recvMessage(self, player) -> str:
-        while True:
-            buffer = player.getSocket().recv(BUFFER_SIZE).decode(FORMAT)
-            if buffer:
-                return buffer
 
     """
         Make Big blind and small blind bets
@@ -162,7 +145,7 @@ class Match:
             player = players[positionBB]
 
             self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
-            bet = int(self.recvMessage(player))
+            bet = int(self.recvMessage(player.getSocket()))
             
             if player.getChips() - bet >= 0:
                 player.setChips(player.getChips() - bet)
@@ -225,7 +208,7 @@ class Match:
             # Loop until the user enters a valid action
             while(action not in validActions):
                 self.sendMessage(player, privateMsg=actionsText+"\nOpção: ", waitingAnswer=True)
-                action = self.recvMessage(player).lower()
+                action = self.recvMessage(player.getSocket()).lower()
                 
                 if(action == 'r' and player.getChips() <= bet): action = 'p'
 
@@ -253,7 +236,7 @@ class Match:
                         player, 
                         f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ", 
                         waitingAnswer=True)
-                    bet_temp = int(self.recvMessage(player))
+                    bet_temp = int(self.recvMessage(player.getSocket()))
                     
                     if player.getChips() - bet_temp >= 0 and bet_temp >= minimunBet:
                         player.setChips(player.getChips() - bet_temp)
@@ -318,14 +301,14 @@ class Match:
                     f"Jogador {player.getName()} selecionando a carta {i+1}.", f"{player.getName()} - Digite o índice da carta que deseja selecionar: ",
                     waitingAnswer=True
                 )
-                select = int(self.recvMessage(player))
+                select = int(self.recvMessage(player.getSocket()))
                 
                 while select in selectedCards:
                     self.sendMessage(player, 
                                      privateMsg="Valor já selecionado \nDigite o índice da carta que deseja selecionar: ", 
                                      waitingAnswer=True
                                      )
-                    select = int(self.recvMessage(player))
+                    select = int(self.recvMessage(player.getSocket()))
                 
                 selectedCards.append(select)
 

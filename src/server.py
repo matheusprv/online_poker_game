@@ -1,109 +1,67 @@
-""""
-Ficar no while da main enquanto espera todos se conectarem
-a cada conexão cria uma thread para ficar esperando o pronto do usuário
-quando todos colocarem pronto ou ter o número de players máximo, então o jogo começa
-"""""
-
-
-
-from constants import *
-from match import Match
 from player import Player
+from session import Session
+from constants import *
+
 import threading
 from time import sleep
 
-current_number_of_players = 0
-MAXIMUN_NUMBER_OF_PLAYERS = 8
-sockets_ids = []
-mutex = threading.Lock()
+class Server:
+
+    def __init__(self, maximunSessions = 4) -> None:
+        self.sessions = []
+        self.maximunSessions = maximunSessions
+        self.createServer()
+        
+
+    """
+        Creates a socket and bind it to an address
+    """
+    def createServer(self):
+        self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.main_socket.bind(SERVER_ADDR_PORT)
+        self.main_socket.listen(2^32)
 
 
-def receiveUserName(playerSocket) -> str:
-    while True:
-        buffer = playerSocket.recv(BUFFER_SIZE).decode(FORMAT)
-        if buffer:
-            return buffer
+    """
+        Creates a new game session
+    """
+    def createSession(self) -> Session:
+        if len(self.sessions) == self.maximunSessions: return None
 
-def sendUserId(playerSocket, id) -> None:
-    id = id.encode(FORMAT)
-    playerSocket.sendall(id)
+        newSession = Session(self.main_socket)
+        self.sessions.append(newSession)
+        return newSession
 
-def receiveReadyQuit(playerSocket) -> str:
-    while True:
-        buffer = playerSocket.recv(BUFFER_SIZE).decode(FORMAT)
 
-        if buffer == 'pronto':
-            return True
-        elif buffer == 'quit':
-            return False
 
-# Recebe o nome do cliente e verifica se ele ta pronto 
-def conexao(playerSocket, match):
 
-    # Esperar pelo nome do usuario
-    name = receiveUserName(playerSocket)
+    #TODO: Chamar a função em uma thread no construtor
+    """
+        From time to time the server will check if a session contains at least one player
+        If it doesn't then the session will be finished
+    """
+    def checkSessions(self):
+        pass
 
-    # Enviar id
-    player = Player(name, playerSocket)
-    with mutex:
-        match.addPlayer(player)
+    # def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
+    #     playerId = player.getId() if player != None else ""
+    #     messageDict = {
+    #         "userId": playerId,
+    #         "publicMsg" : publicMsg,
+    #         "privateMsg" : privateMsg,
+    #         "waitingAnswer" : waitingAnswer
+    #     }
 
-    sendUserId(playerSocket, player.getId())
+    #     msg = json.dumps(messageDict).encode(FORMAT)
 
-    # Esperando pelo pronto ou quit
-    # Pronto
-    if receiveReadyQuit(playerSocket):
-        player.setReady(True)
-    
-    # Quit
-    else:
-        with mutex:
-            sockets_ids.remove(playerSocket)
-            current_number_of_players -= 1
+    #     for p in self.match.getPlayers():
+    #         p.getSocket().sendall(msg) 
+        
+    #     sleep(0.2)  
+
+    # def recvMessage(self, socketTarget) -> str:
+    #     while True:
+    #         buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
+    #         if buffer:
+    #             return buffer
             
-            playerSocket.shutdown(playerSocket.SHUT_RDWR)
-            playerSocket.close()
-
-            match.removePlayer(player)
-
-
-def connectClients(main_socket, match):
-    # Putting the socket in listening mode
-    main_socket.listen(MAXIMUN_NUMBER_OF_PLAYERS)
-
-    # Waiting for the players to connect and 
-    while len(sockets_ids) < MAXIMUN_NUMBER_OF_PLAYERS:
-        print("Esperando conexão")
-
-        new_socket, _ = main_socket.accept()
-
-        with mutex:
-            # The game has alredy began, so the new player can't enter
-            if(match.isInProgress()): break
-
-            sockets_ids.append(new_socket)
-            global current_number_of_players 
-            current_number_of_players += 1
-
-            thread = threading.Thread(target=conexao, args=(new_socket, match))
-            thread.start()
-            print("Cliente conectado")
-
-
-if __name__ == "__main__":
-    main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    server_addr = SERVER_ADDR_PORT
-    main_socket.bind(server_addr)
-
-    match = Match()
-    
-    thread_conexoes = threading.Thread(target=connectClients, args=(main_socket, match))
-    thread_conexoes.start()
-
-    while match.checkReadyPlayers() == False:
-        sleep(2)
-
-    match.startGame()
-
-    
