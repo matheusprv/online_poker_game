@@ -11,4 +11,6 @@ if __name__ == "__main__":
     
     else: gameSession.startGame()
 
-    
+#! Enviar o relatório da partida
+#! Enviar mais informações para os usuários sobre o andamento das partidas
+#! Criação de mais salas de jogo
