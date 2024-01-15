@@ -78,12 +78,13 @@ def playMatch(client_socket):
 
 
 if __name__ == "__main__":
+    # Defining the player's name
+    name = input("Digite o seu nome: ")
+    
     # Configuring a socket to use the protocol of internet and use the TCP
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(CLIENT_ADDR_PORT)
 
-    # Defining the player's name
-    name = input("Digite o seu nome: ")
     setPlayerName(client_socket, name)
 
     # Receiving the id that the server is going ot generate to the current player
