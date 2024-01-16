@@ -41,6 +41,10 @@ def handleMessage(receivedData):
             msg = input(receivedData["privateMsg"])
             msg = msg.encode(FORMAT)
             client_socket.sendall(msg)
+            
+            if msg == "quit":
+                return "quit"
+        
         else:
             print(receivedData["privateMsg"])
     
@@ -50,9 +54,10 @@ def handleMessage(receivedData):
 
 # Play the match 
 def playMatch(client_socket):
-    #!ver uma forma de como a funcao vai ser finalizada
     # Receving information about the game
-    while True: 
+
+    returnValue = ""
+    while returnValue != "quit": 
         buffer = None
 
         while True:
@@ -60,21 +65,16 @@ def playMatch(client_socket):
             if buffer:
                 break
 
-        # print("="*50)
-        # print(buffer)
-        # print("="*50)
-
         jsons = buffer.split('}')
         jsons.pop(-1)
         jsons = [add + '}' for add in jsons]
 
-        # print("="*50)
-        # print(jsons)
-        # print("="*50)
-
         for obj in jsons:
             receivedData = json.loads(obj)
-            handleMessage(receivedData)
+            returnValue = handleMessage(receivedData)
+            
+            if returnValue == "quit":
+                break
 
 
 def configNgrok(argv):
@@ -101,9 +101,11 @@ if __name__ == "__main__":
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(CLIENT_ADDR_PORT)
 
+    print("Enviando o nome")
     setPlayerName(client_socket, name)
 
     # Receiving the id that the server is going ot generate to the current player
+    print("Esperando pelo ID")
     receiveId(client_socket)
 
     # Checking whether the player is ready to play or not

@@ -30,23 +30,28 @@ class Session:
     """
     def __awaitClientsConnections(self) -> None:
         # Waiting for the players to connect and get ready for the match 
-        while self.numberOfPlayers < self.MAXIMUN_NUMBER_OF_PLAYERS:
-            print("Esperando conexão")
+        while self.numberOfPlayers < self.MAXIMUN_NUMBER_OF_PLAYERS and not self.match.isInProgress():
+            print("Esperando conexão -", self.match.isInProgress())
 
             playerSocket, _ = self.server_socket.accept()
 
             with self.mutex:
                 # The game has alredy began, so the new player can't join
-                #TODO: Enviar mensagem de erro para o usuário além do break
-                if(self.match.isInProgress() or self.numberOfPlayers == self.MAXIMUN_NUMBER_OF_PLAYERS): break
+                print(f"Conexão - Partida em progresso: {self.match.isInProgress()}")
+                if self.match.isInProgress() or self.numberOfPlayers == self.MAXIMUN_NUMBER_OF_PLAYERS: 
+                    playerSocket.shutdown(playerSocket.SHUT_RDWR)
+                    playerSocket.close()
+                    break
 
                 self.sockets_ids.append(playerSocket)
                 self.numberOfPlayers += 1
-
+                
                 thread = threading.Thread(target=self.__awaitsPlayerStatus, args=(playerSocket,))
                 thread.start()
-                print("Cliente conectado")              
-    
+                print("Cliente conectado")        
+        
+        print("\nNão aceitando mais conexões\n")
+
     """
         Awaits for the player to type "Pronto" or "Sair"
         "Pronto" will put it into the array of players
@@ -66,7 +71,10 @@ class Session:
         # Waiting for pronto or quit
         
         prontoSair = self.__receiveReadyQuit(playerSocket)
-        if prontoSair: player.setReady(True)# Pronto
+        if prontoSair: 
+            player.setReady(True)# Pronto
+            self.sendMessage(player, privateMsg="Aguardando os demais jogadores...\n")
+
         else: self.__quit(player) # Quit
 
     """
@@ -116,6 +124,11 @@ class Session:
 
 
 
+    def searchPlayerBySocket(self, socketTarget) -> Player:
+        for p in self.match.getPlayers():
+            if p.getSocket() == socketTarget:
+                return p
+        
 
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
         playerId = player.getId() if player != None else ""
@@ -137,4 +150,8 @@ class Session:
         while True:
             buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
             if buffer:
-                return buffer
+                if buffer == "quit":
+                    self.__quit(self.searchPlayerBySocket(socketTarget))
+
+                else:
+                    return buffer

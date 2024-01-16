@@ -2,7 +2,7 @@ from deck import Deck
 
 import calendar
 import time
-from time import sleep
+from time import sleep, time
 from copy import copy
 
 from constants import *
@@ -43,8 +43,11 @@ class Match:
         self.inProgress = inProgress
 
     def isInProgress(self) -> bool:
-        self.inProgress
+        return self.inProgress
 
+    """
+        Generate a report with all the plays from the game and wins/defeats from each player
+    """
     def getReport(self) -> str:
         report = "Jogadas:\n"
         for play in self.plays:
@@ -60,6 +63,13 @@ class Match:
 
     def addToBucket(self, value) -> None:
         self.bucket += value
+
+    def chipsInformations(self, player, bucket, bet) -> str:
+        output = f"\nFichas que você possui: {player.getChips()}"
+        output += f"\nBucket: {bucket}"
+        output += f"\nAposta Atual: {bet}\n"
+
+        return output
 
     # Return the total of active players. If it is one, return the player, otherwise return None
     def totalActivePlayers(self):
@@ -119,7 +129,7 @@ class Match:
     def checkReadyPlayers(self) -> bool:
         print(f"Checando {len(self.getPlayers())} jogadores")
         
-        if(len(self.getPlayers())) == 0:
+        if(len(self.getPlayers())) <= 1:
             return False
 
         for player in self.getPlayers():
@@ -144,7 +154,7 @@ class Match:
         while 1:
             player = players[positionBB]
 
-            self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
+            self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
             bet = int(self.recvMessage(player.getSocket()))
             
             if player.getChips() - bet >= 0:
@@ -156,7 +166,7 @@ class Match:
         betBB = bet
         self.addToBucket(bet)
         self.addPlay(player=player, action=f"Aposta:{bet}")
-        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {bet} fichas.")
+        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {bet} fichas sendo o Big Blind.")
 
         # Making small blind bet
         betSB = betBB // 2
@@ -171,6 +181,7 @@ class Match:
             player.setChips(0)
         
         self.addPlay(player=player, action=f"Aposta:{betSB}")
+        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {betSB} fichas sendo o Small Blind.")
 
         return bet, betBB, betSB
 
@@ -207,7 +218,7 @@ class Match:
 
             # Loop until the user enters a valid action
             while(action not in validActions):
-                self.sendMessage(player, privateMsg=actionsText+"\nOpção: ", waitingAnswer=True)
+                self.sendMessage(player, privateMsg= self.chipsInformations(player, self.bucket, bet) + actionsText + "\nOpção: ", waitingAnswer=True)
                 action = self.recvMessage(player.getSocket()).lower()
                 
                 if(action == 'r' and player.getChips() <= bet): action = 'p'
@@ -217,6 +228,7 @@ class Match:
                 self.deck.returnCard(player.retriveCards())
                 player.setActive(False)
                 self.addPlay(player, "Fold")
+                self.sendMessage(publicMsg = f"Jogador {player.getName()} realizou uma ação de Fold")
 
             elif action == "p":
                 #Pay the bet or go All-In
@@ -228,13 +240,15 @@ class Match:
                     minimunBet = player.getChips()
                     player.setChips(0)
                 self.addPlay(player, f"Pagar:{minimunBet}")
+                self.sendMessage(publicMsg = f"Jogador {player.getName()} pagou {minimunBet} ficha(s)")
                 
             elif action == "r":
                 #Put the higher value than the current bet
                 while 1:
                     self.sendMessage(
                         player, 
-                        f"Jogador {player.getName()} aumentando a aposta", f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ", 
+                        f"Jogador {player.getName()} aumentando a aposta",
+                        self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ", 
                         waitingAnswer=True)
                     bet_temp = int(self.recvMessage(player.getSocket()))
                     
@@ -248,6 +262,7 @@ class Match:
                 self.addToBucket(bet_temp)
                 self.addPlay(player, f"Raise(Aumentar):{bet_temp}")
                 
+                self.sendMessage(publicMsg = f"Jogador {player.getName()} aumentou a aposta para {bet_temp} fichas")
                 self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
     
             position = (position + 1) % totalPlayers    
@@ -260,7 +275,13 @@ class Match:
         totalActive, player = self.totalActivePlayers()
         if totalActive == 1:
             player.setChips(player.getChips() + self.bucket)
-            self.sendMessage(public = f"Ganhador: {player.getName()}")
+            player.wins += 1
+            self.sendMessage(publicMsg = f"Ganhador: {player.getName()}")
+
+            for p in self.getPlayers():
+                if p != player:
+                    p.defeats += 1
+
             self.resetTable()
             return True
         
@@ -329,9 +350,11 @@ class Match:
     def checkWinner(self):
         players = self.getPlayers()
         winner = players[0]
+        winner.defeats += 1
         winnerCardPoints = winner.countCardsPoints()
 
         for player in players[1:]:
+            player.defeats += 1
             playerCardPoints = player.countCardsPoints()
             if player.isActive and playerCardPoints > winnerCardPoints:
                 winner = player
@@ -340,23 +363,31 @@ class Match:
         # Give the bucket's chips to the winner
         winner.setChips(winner.getChips() + self.bucket)
 
+        winner.wins += 1
+        winner.defeats -= 1
+
         self.sendMessage(publicMsg= f"Ganhador: {player.getName()}")
 
-
     def startGame(self) -> None:
-        self.initalTime = self.getCurrentTimestamp()
         self.deck.shuffle()
         
         roundCounter = 1
         while len(self.getPlayers()) > 1:
+
+            self.initalTime = self.getCurrentTimestamp()
             self.executeGame(roundCounter)
+            self.finalTime = self.getCurrentTimestamp()
+
+            self.sendMessage(publicMsg = self.getReport())
+
             self.setInProgress(False)
             roundCounter += 1
-
+            
     """
         Execute a gaming round
     """
     def executeGame(self, roundCounter) -> None:
+        
         self.setInProgress(True)
         players = self.getPlayers()
         totalPlayers = len(players)
