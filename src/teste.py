@@ -1,6 +1,30 @@
 import sys
 
 
+import time
+import calendar
+
+def getCurrentTimestamp() -> int:
+    currentGmt = time.gmtime()
+    return  calendar.timegm(currentGmt)
+
+tempoInicio = getCurrentTimestamp()
+time.sleep(5)
+tempoFinal = getCurrentTimestamp()
+
+print(tempoInicio)
+print(tempoFinal)
+
+elapsed_seconds = tempoFinal - tempoInicio
+
+minutes, seconds = divmod(elapsed_seconds, 60)
+elapsed_time_formatted = f"{minutes:02}:{seconds:02}"
+
+print(elapsed_time_formatted)
+
+
+sys.exit()
+
 string = '{"userId": "1703898827Matheus", "publicMsg": "Big Blind Matheus definindo a aposta", "privateMsg": "Matheus - Qual ser\u00e1 o valor da aposta inicial: ", "waitingAnswer": true}{"userId": "1703898827Matheus", "publicMsg": "Big Blind Matheus definindo a aposta", "privateMsg": "Matheus - Qual ser\u00e1 o valor da aposta inicial: ", "waitingAnswer": true}'
 
 splittado = string.split('}')

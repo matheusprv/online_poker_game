@@ -2,7 +2,7 @@ from deck import Deck
 
 import calendar
 import time
-from time import sleep, time
+from time import sleep
 from copy import copy
 
 from constants import *
@@ -37,7 +37,7 @@ class Match:
         self.players.remove(player)
 
     def addPlay(self, player, action) -> None:
-        self.plays.append((player, action))
+        self.plays.append((player.getName(), action))
 
     def setInProgress(self, inProgress) -> None:
         self.inProgress = inProgress
@@ -45,15 +45,21 @@ class Match:
     def isInProgress(self) -> bool:
         return self.inProgress
 
+    def formatElapsedTime(self):
+        elapsed_seconds = self.finalTime - self.initalTime
+        minutes, seconds = divmod(elapsed_seconds, 60)
+        elapsed_time_formatted = f"{minutes:02}:{seconds:02}"
+        return elapsed_time_formatted
+
     """
         Generate a report with all the plays from the game and wins/defeats from each player
     """
     def getReport(self) -> str:
-        report = "Jogadas:\n"
+        report = "\nJogadas:\n"
         for play in self.plays:
             report += f"{play[0]} - {play[1]}\n"
         
-        report += f"\n\nTempo de jogo: {(self.finalTime - self.initalTime) // 60}s\n"
+        report += f"\n\nTempo de jogo: {self.formatElapsedTime()}\n"
         
         report += "\n\n"
         for player in self.players:

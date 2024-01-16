@@ -13,3 +13,5 @@ if __name__ == "__main__":
 
 #! Enviar o relatório da partida
 #! Criação de mais salas de jogo
+    
+#! Exibir cartas e indices das mesmas na hora de selecioná-las
