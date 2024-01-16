@@ -10,9 +10,10 @@ LOCAL_PORT = 9999
 LOCAL_SERVER = '0.0.0.0'
 SERVER_ADDR_PORT = (LOCAL_SERVER, LOCAL_PORT)
 
+NGROK_ADDR = "0.tcp.sa.ngrok.io"
+
 if using_ngrok:
     NGROK_PORT  = 15770
-    NGROK_ADDR = "0.tcp.sa.ngrok.io"
     CLIENT_ADDR_PORT = (NGROK_ADDR, NGROK_PORT )
 
 else:

@@ -81,13 +81,14 @@ def configNgrok(argv):
     if len(argv) == 1: return 
 
     ngrokPort = None
-    try:
-        ngrokPort = int(argv[1])
-        NGROK_PORT = ngrokPort
-        using_ngrok = True
-    except:
-        print("Não foi possível identificar a porta do NGrok.\nUsando a conexão local.")
-        return
+    # try:
+    ngrokPort = int(argv[1])
+    global CLIENT_ADDR_PORT
+    CLIENT_ADDR_PORT = (NGROK_ADDR, ngrokPort)
+
+    # except:
+    #     print("Não foi possível identificar a porta do NGrok.\nUsando a conexão local.")
+    #     return
 
 if __name__ == "__main__":
     
