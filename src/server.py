@@ -34,7 +34,6 @@ class Server:
 
 
 
-
     #TODO: Chamar a função em uma thread no construtor
     """
         From time to time the server will check if a session contains at least one player

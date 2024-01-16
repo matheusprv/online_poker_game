@@ -14,3 +14,5 @@ if __name__ == "__main__":
 #! Enviar o relatório da partida
 #! Enviar mais informações para os usuários sobre o andamento das partidas
 #! Criação de mais salas de jogo
+#! ver uma forma de como a funcao "playMatch" do client.py vai ser finalizada
+#! Verificar partida começando com somente um jogador caso ele dê pronto e op jogo nao começa quando outro se conecta

@@ -1,5 +1,6 @@
 import socket
 from constants import *
+import sys
 
 user_id = None
 userName = None
@@ -76,8 +77,22 @@ def playMatch(client_socket):
             handleMessage(receivedData)
 
 
+def configNgrok(argv):
+    if len(argv) == 1: return 
+
+    ngrokPort = None
+    try:
+        ngrokPort = int(argv[1])
+        NGROK_PORT = ngrokPort
+        using_ngrok = True
+    except:
+        print("Não foi possível identificar a porta do NGrok.\nUsando a conexão local.")
+        return
 
 if __name__ == "__main__":
+    
+    configNgrok(sys.argv)
+    
     # Defining the player's name
     name = input("Digite o seu nome: ")
     
