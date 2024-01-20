@@ -7,6 +7,13 @@ from copy import copy
 
 from constants import *
 
+FIRST_BETTING_ROUND = 2
+LAST_BETTING_ROUND  = 4
+
+GREEN = "green"
+RED   = "red"
+BLUE  = "blue"
+
 class Match:
 
     def getCurrentTimestamp(self) -> int:
@@ -23,8 +30,13 @@ class Match:
         self.deck = Deck()
         self.inProgress = False
 
+
         self.sendMessage = sendMessage
         self.recvMessage = recvMessage
+
+    def coloredText(self, text, color) -> str:
+        if color == GREEN: return "\033[92m" + text + "\033[0m"
+        if color == RED:   return "\033[91m" + text + "\033[0m"
 
 
     def getPlayers(self):
@@ -71,10 +83,11 @@ class Match:
         self.bucket += value
 
     def chipsInformations(self, player, bucket, bet) -> str:
-        output = f"\nFichas que você possui: {player.getChips()}"
+        output = "="*50
+        output += f"\nFichas que você possui: {player.getChips()}"
         output += f"\nBucket: {bucket}"
         output += f"\nAposta Atual: {bet}\n"
-
+        output += "="*50 + "\n"
         return output
 
     # Return the total of active players. If it is one, return the player, otherwise return None
@@ -94,12 +107,22 @@ class Match:
             strCards += "\n" + card.stringCard()
         return strCards
 
+    """
+        Format all the community and the player's cards into a single string with the index to choose them
+    """
     def strFinalCards(self, player) -> str:
-        strCards = ""
         count = 1
-        for card in player.getCards() + self.communityCards:
-            strCards + f"{count} - {card.stringCard()}" 
+
+        strCards = "\nCartas do Jogador:\n"
+        for card in player.getCards():
+            strCards += f"\t{count}: {card.stringCard()}\n" 
             count += 1
+
+        strCards += "Cartas da Mesa:\n"
+        for card in self.communityCards:
+            strCards += f"\t{count}: {card.stringCard()}\n" 
+            count += 1
+
         return strCards
 
     def resetTable(self) -> None:
@@ -163,11 +186,11 @@ class Match:
             self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
             bet = int(self.recvMessage(player.getSocket()))
             
-            if player.getChips() - bet >= 0:
+            if player.getChips() - bet >= 0 and bet > 1:
                 player.setChips(player.getChips() - bet)
                 break
             else:
-                self.sendMessage(player, privateMsg="Valor inválido da aposta")
+                self.sendMessage(player, privateMsg=self.coloredText("Valor inválido da aposta", RED))
 
         betBB = bet
         self.addToBucket(bet)
@@ -262,7 +285,7 @@ class Match:
                         player.setChips(player.getChips() - bet_temp)
                         break
                     else:
-                        self.sendMessage(player, privateMsg="Valor inválido da aposta")
+                        self.sendMessage(player, privateMsg=self.coloredText("Valor inválido da aposta", RED))
                         
                 bet += bet_temp
                 self.addToBucket(bet_temp)
@@ -311,14 +334,20 @@ class Match:
                 cardMessage += "\n" + card.stringCard()
             
             cardMessage += '\n'
-            self.sendMessage(player, privateMsg=cardMessage)
+            
+            #verificacao adicionada para realizar teste da função sem a necessidade de enviar dados para um socket de jogador
+            if self.sendMessage != None:
+                self.sendMessage(player, privateMsg=cardMessage)
 
     """
         The player will choose the five cards that will compose his hand
     """
     def chooseFiveCards(self):
         for player in self.getPlayers():
-            self.sendMessage(player, publicMsg= self.strFinalCards(player))
+
+            cardsToChoose = self.strFinalCards(player)
+
+            self.sendMessage(player, publicMsg= cardsToChoose)
             selectedCards = []
 
             #Making the user select five different cards
@@ -329,6 +358,13 @@ class Match:
                     waitingAnswer=True
                 )
                 select = int(self.recvMessage(player.getSocket()))
+
+                while select < 1 or select > 7: 
+                    self.sendMessage(player, 
+                                     privateMsg=self.coloredText("Valor inválido!", RED) + "\nDigite o índice da carta que deseja selecionar: ", 
+                                     waitingAnswer=True
+                                     )
+                    select = int(self.recvMessage(player.getSocket()))
                 
                 while select in selectedCards:
                     self.sendMessage(player, 
@@ -412,7 +448,6 @@ class Match:
         print("Cartas distribuidas")
         sleep(0.2)
 
-
         #First bet round
         position = (positionBB + 1)  % totalPlayers
         self.betRound(1, position, positionBB, positionSB, bet, betBB, betSB)
@@ -425,7 +460,7 @@ class Match:
         """
             Making all betting rounds
         """
-        for i in range(2, 4 +1):
+        for i in range(FIRST_BETTING_ROUND, LAST_BETTING_ROUND + 1):
             self.flop_turn_river()
             
             communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()

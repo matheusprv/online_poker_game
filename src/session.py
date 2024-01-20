@@ -31,13 +31,13 @@ class Session:
     def __awaitClientsConnections(self) -> None:
         # Waiting for the players to connect and get ready for the match 
         while self.numberOfPlayers < self.MAXIMUN_NUMBER_OF_PLAYERS and not self.match.isInProgress():
-            print("Esperando conexão -", self.match.isInProgress())
+            print("Esperando conexão")
 
             playerSocket, _ = self.server_socket.accept()
 
             with self.mutex:
                 # The game has alredy began, so the new player can't join
-                print(f"Conexão - Partida em progresso: {self.match.isInProgress()}")
+                print(f"Conexão")
                 if self.match.isInProgress() or self.numberOfPlayers == self.MAXIMUN_NUMBER_OF_PLAYERS: 
                     playerSocket.shutdown(playerSocket.SHUT_RDWR)
                     playerSocket.close()
