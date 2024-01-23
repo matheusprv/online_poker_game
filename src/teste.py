@@ -4,16 +4,22 @@ from card import Card
 from match import Match
 
 if __name__ == "__main__":
-    deck = Deck()
-    player = Player("P1")
+    teste = "3.5"
+    print(teste.isdigit())
+    teste="a2"
+    print(teste.isdigit())
 
-    match = Match(None, None)
-    match.addPlayer(player)
 
-    match.flop_turn_river()
-    match.distributeCards(0)
+    # deck = Deck()
+    # player = Player("P1")
 
-    print(match.strFinalCards(player))
+    # match = Match(None, None)
+    # match.addPlayer(player)
+
+    # match.flop_turn_river()
+    # match.distributeCards(0)
+
+    # print(match.strFinalCards(player))
 
 
 def teste_1():

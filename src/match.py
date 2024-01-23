@@ -108,6 +108,17 @@ class Match:
         return strCards
 
     """
+        Guarantee that an input coming from the user will be a numeric value. If it is not, then an error message will be sent
+    """
+    def receiveNumericMessage(self, player, errorText) -> int:
+        receivedValue = self.recvMessage(player.getSocket())
+        while not receivedValue.isnumeric():
+            self.sendMessage(player, privateMsg = errorText, waitingAnswer=True)
+            receivedValue = self.recvMessage(player.getSocket())
+
+        return int(receivedValue)
+
+    """
         Format all the community and the player's cards into a single string with the index to choose them
     """
     def strFinalCards(self, player) -> str:
@@ -184,7 +195,8 @@ class Match:
             player = players[positionBB]
 
             self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
-            bet = int(self.recvMessage(player.getSocket()))
+            text = self.coloredText("O valor deve ser um inteiro positivo", RED) + f"\n{player.getName()} - Qual será o valor da aposta inicial: "
+            bet = self.receiveNumericMessage(player, errorText= text)
             
             if player.getChips() - bet >= 0 and bet > 1:
                 player.setChips(player.getChips() - bet)
@@ -273,15 +285,20 @@ class Match:
                 
             elif action == "r":
                 #Put the higher value than the current bet
+                
+                textMinimunBet = f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): "
+                
                 while 1:
                     self.sendMessage(
                         player, 
                         f"Jogador {player.getName()} aumentando a aposta",
-                        self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta (Valor mínimo para aposta {minimunBet+1}): ", 
+                        self.chipsInformations(player, self.bucket, bet) + textMinimunBet, 
                         waitingAnswer=True)
-                    bet_temp = int(self.recvMessage(player.getSocket()))
                     
-                    if player.getChips() - bet_temp >= 0 and bet_temp >= minimunBet:
+                    text = self.coloredText("O valor deve ser um inteiro positivo", RED) + textMinimunBet
+                    bet_temp = self.receiveNumericMessage(player, errorText = text)
+                    
+                    if player.getChips() - bet_temp >= 0 and bet_temp > minimunBet:
                         player.setChips(player.getChips() - bet_temp)
                         break
                     else:
@@ -351,27 +368,30 @@ class Match:
             selectedCards = []
 
             #Making the user select five different cards
+
+            selectionCardMessage = f"{player.getName()} - Digite o índice da carta que deseja selecionar: "
+
             for i in range(5):
                 self.sendMessage(
                     player, 
-                    f"Jogador {player.getName()} selecionando a carta {i+1}.", f"{player.getName()} - Digite o índice da carta que deseja selecionar: ",
+                    f"Jogador {player.getName()} selecionando a carta {i+1}.", selectionCardMessage,
                     waitingAnswer=True
                 )
-                select = int(self.recvMessage(player.getSocket()))
+                select = self.receiveNumericMessage(player, self.coloredText("O valor deve ser um inteiro positivo", RED) + "\n" + selectionCardMessage)
 
                 while select < 1 or select > 7: 
                     self.sendMessage(player, 
                                      privateMsg=self.coloredText("Valor inválido!", RED) + "\nDigite o índice da carta que deseja selecionar: ", 
                                      waitingAnswer=True
                                      )
-                    select = int(self.recvMessage(player.getSocket()))
+                    select = self.receiveNumericMessage(player, self.coloredText("O valor deve ser um inteiro positivo", RED) + "\n" + selectionCardMessage)
                 
                 while select in selectedCards:
                     self.sendMessage(player, 
                                      privateMsg="Valor já selecionado \nDigite o índice da carta que deseja selecionar: ", 
                                      waitingAnswer=True
                                      )
-                    select = int(self.recvMessage(player.getSocket()))
+                    select = self.receiveNumericMessage(player, self.coloredText("O valor deve ser um inteiro positivo", RED) + "\n" + selectionCardMessage)
                 
                 selectedCards.append(select)
 

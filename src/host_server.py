@@ -11,6 +11,19 @@ if __name__ == "__main__":
     
     else: gameSession.startGame()
 
-#! Enviar o relatório da partida
+
+
+
+
 #! Criação de mais salas de jogo
-#! Exibir cartas e indices das mesmas na hora de selecioná-las
+
+# Servidor inicia
+# Cria as sessões
+# Cria thread pra ficar escutando as ações do usuário
+
+
+# Durante o jogo
+# Cada mensagem que vem do usuario tem uma id da sessão 
+# A mensagem fica no servidor 
+# Manda para uma fila de mensagem da sessao especifica
+# A função da sessão ela vai ler essa fila 
