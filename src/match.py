@@ -361,6 +361,8 @@ class Match:
     """
     def chooseFiveCards(self):
         for player in self.getPlayers():
+            if not player.isActive():
+                continue
 
             cardsToChoose = self.strFinalCards(player)
 

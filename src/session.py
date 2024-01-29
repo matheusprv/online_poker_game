@@ -9,12 +9,13 @@ class Session:
 
     mutex = threading.Lock()
     MAXIMUN_NUMBER_OF_PLAYERS = 8
-    numberOfPlayers = 0
-    sockets_ids = []
+    
 
     def __init__(self, main_socket) -> None:
         self.server_socket = main_socket
-        self.match = Match(self.sendMessage, self.recvMessage)        
+        self.match = Match(self.sendMessage, self.recvMessage)     
+        self.numberOfPlayers = 0  
+        self.sockets_ids = []
 
     """
         Make threads to await for players connection and their answers to get ready to start the game
@@ -23,7 +24,6 @@ class Session:
         thread_conexoes = threading.Thread(target=self.__awaitClientsConnections)
         thread_conexoes.start()
 
-    #TODO: Enviar mensagem de erro para o usuário além do break
     """
         Awaits for the players to connect and add them into the match's player's array
         If the numberOfPlayers is equals to the MAXIMUN_NUMBER_OF_PLAYERS or the match started, reject the addition to the match
