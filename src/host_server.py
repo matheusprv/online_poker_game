@@ -1,16 +1,13 @@
 from constants import *
-from server import Server
+from server2 import Server
 
 if __name__ == "__main__":
 
     server = Server()
 
-    gameSession = server.createSession()
-
-    if(gameSession == None): print("Não foi possível criar uma sessão de jogo")
-    
-    else: gameSession.startGame()
-
+    server.createSessions()
+    server.startSessions()
+    server.connectPlayers()
 
 
 

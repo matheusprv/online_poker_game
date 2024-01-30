@@ -20,7 +20,8 @@ class Match:
         currentGmt = time.gmtime()
         return  calendar.timegm(currentGmt)
         
-    def __init__(self, sendMessage, recvMessage) -> None:
+    def __init__(self, matchId, sendMessage, recvMessage) -> None:
+        self.matchId = matchId
         self.players = []
         self.plays = []
         self.initalTime = 0
@@ -167,7 +168,7 @@ class Match:
 
 
     def checkReadyPlayers(self) -> bool:
-        print(f"Checando {len(self.getPlayers())} jogadores")
+        print(f"Checando {len(self.getPlayers())} jogadores da partida {self.matchId}")
         
         if(len(self.getPlayers())) <= 1:
             return False
