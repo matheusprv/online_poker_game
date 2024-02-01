@@ -1,56 +1,68 @@
-from constants import *
-from match import Match
-from time import sleep
 from player import Player
+from match import Match
+from constants import *
 import threading
-
+from time import sleep
 
 class Session:
-
     mutex = threading.Lock()
-    MAXIMUN_NUMBER_OF_PLAYERS = 8
-    
+    MAXIMUM_NUMBER_OF_PLAYERS = 8
+    SESSION_IDS = 0
 
-    def __init__(self, main_socket) -> None:
+    def __init__(self, id, main_socket) -> None:
+        self.sessionId = id
+        
         self.server_socket = main_socket
-        self.match = Match(self.sendMessage, self.recvMessage)     
-        self.numberOfPlayers = 0  
+
+        self.match = Match(id, self.sendMessage, self.recvMessage) 
+        self.numberOfPlayers = 0 
+        self.playersSocketStack = []
         self.sockets_ids = []
+        self.event = threading.Event()
+        self.keepAccepting = True
 
     """
-        Make threads to await for players connection and their answers to get ready to start the game
+        True if it is possible to connect
+        False if not. Because the game has already started or the session is full
     """
-    def __playersConnection(self) -> None:
-        thread_conexoes = threading.Thread(target=self.__awaitClientsConnections)
+    def isPossibleToConnect(self) -> bool:
+        if self.numberOfPlayers < self.MAXIMUN_NUMBER_OF_PLAYERS and not self.match.isInProgress():
+            return True
+        else:
+            self.event.set()
+            self.keepAccepting = False
+            return False
+
+    """
+        Awaits for all players connect to the session.
+        After all of them are connected and checked as 'pronto' the game begins
+    """
+    def startGame(self) -> None:
+        print(f"Start game from session {self.sessionId}")
+        self.__playersConnection()
+        self.__checkAllPlayersStatus()
+        self.keepAccepting = False
+        self.event.set() #Waking up the __handlePlayersConnection and finishing it
+        self.match.startGame()
+
+    def __playersConnection(self):
+        thread_conexoes = threading.Thread(target=self.__handlePlayersConnection)
         thread_conexoes.start()
 
-    """
-        Awaits for the players to connect and add them into the match's player's array
-        If the numberOfPlayers is equals to the MAXIMUN_NUMBER_OF_PLAYERS or the match started, reject the addition to the match
-    """
-    def __awaitClientsConnections(self) -> None:
-        # Waiting for the players to connect and get ready for the match 
-        while self.numberOfPlayers < self.MAXIMUN_NUMBER_OF_PLAYERS and not self.match.isInProgress():
-            print("Esperando conexão")
+    def __handlePlayersConnection(self):
+        while self.keepAccepting:
+            if len(self.playersSocketStack) == 0: self.event.wait() # Await until there is a player in playersSocketStack
 
-            playerSocket, _ = self.server_socket.accept()
-
-            with self.mutex:
-                # The game has alredy began, so the new player can't join
-                print(f"Conexão")
-                if self.match.isInProgress() or self.numberOfPlayers == self.MAXIMUN_NUMBER_OF_PLAYERS: 
-                    playerSocket.shutdown(playerSocket.SHUT_RDWR)
-                    playerSocket.close()
-                    break
-
+            while self.keepAccepting and len(self.playersSocketStack) > 0:
+                playerSocket = self.playersSocketStack.pop()
                 self.sockets_ids.append(playerSocket)
                 self.numberOfPlayers += 1
                 
                 thread = threading.Thread(target=self.__awaitsPlayerStatus, args=(playerSocket,))
                 thread.start()
-                print("Cliente conectado")        
-        
-        print("\nNão aceitando mais conexões\n")
+                print("Cliente conectado na sessão", {self.sessionId})
+
+            self.event.clear()
 
     """
         Awaits for the player to type "Pronto" or "Sair"
@@ -98,13 +110,13 @@ class Session:
     def __quit(self, player) -> None:
         playerSocket = player.getSocket()
         with self.mutex:
-                self.sockets_ids.remove(playerSocket)
-                numberOfPlayers -= 1
-                
-                playerSocket.shutdown(playerSocket.SHUT_RDWR)
-                playerSocket.close()
+            self.sockets_ids.remove(playerSocket)
+            numberOfPlayers -= 1
+            
+            playerSocket.shutdown(playerSocket.SHUT_RDWR)
+            playerSocket.close()
 
-                self.match.removePlayer(player)
+            self.match.removePlayer(player)
 
     """
         Keeps on an infinite loop until all the connected players check that are ready to start the game
@@ -113,23 +125,12 @@ class Session:
         while self.match.checkReadyPlayers() == False:
             sleep(2)
 
-    """
-        Awaits for all players connect to the session.
-        After all of them are connected and checked as 'pronto' the game begins
-    """
-    def startGame(self) -> None:
-        self.__playersConnection()
-        self.__checkAllPlayersStatus()
-        self.match.startGame()
-
-
 
     def searchPlayerBySocket(self, socketTarget) -> Player:
         for p in self.match.getPlayers():
             if p.getSocket() == socketTarget:
                 return p
-        
-
+            
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
         playerId = player.getId() if player != None else ""
         messageDict = {
