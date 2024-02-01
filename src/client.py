@@ -90,6 +90,15 @@ def configNgrok(argv):
     #     print("Não foi possível identificar a porta do NGrok.\nUsando a conexão local.")
     #     return
 
+def chooseSection(client_socket):
+    while True:
+        print("Aguardando")
+        buffer = client_socket.recv(BUFFER_SIZE).decode(FORMAT)
+        if buffer:
+            if buffer == "SESS ACK": break
+            sess = input(buffer)
+            client_socket.sendall(sess.encode(FORMAT))
+
 if __name__ == "__main__":
     
     configNgrok(sys.argv)
@@ -100,6 +109,8 @@ if __name__ == "__main__":
     # Configuring a socket to use the protocol of internet and use the TCP
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(CLIENT_ADDR_PORT)
+
+    chooseSection(client_socket)
 
     print("Enviando o nome")
     setPlayerName(client_socket, name)
