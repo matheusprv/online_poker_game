@@ -1,17 +1,39 @@
 import socket
 from constants import *
 import sys
+from time import sleep
 
 user_id = None
 userName = None
 
+def configNgrok(argv):
+    if len(argv) == 1: return 
+
+    ngrokPort = None
+    # try:
+    ngrokPort = int(argv[1])
+    global CLIENT_ADDR_PORT
+    CLIENT_ADDR_PORT = (NGROK_ADDR, ngrokPort)
+
+def receiveMessage(client_socket):
+    while True:
+        buffer = client_socket.recv(BUFFER_SIZE).decode(FORMAT)
+        if buffer:
+            return buffer
+
+def processJSON(buffer):
+    jsons = buffer.split('}')
+    jsons.pop(-1)
+    jsons = [add + '}' for add in jsons]
+    return jsons
+
 # Define the player's name
-def setPlayerName(client_socket, name):
+def sendPlayerNameToServer(client_socket, name):
     name = name.encode(FORMAT)
     client_socket.sendall(name)
 
 # Receive the player id from the server
-def receiveId(client_socket):
+def receiveIdFromServer(client_socket):
     while True:
         buffer = client_socket.recv(BUFFER_SIZE).decode(FORMAT)
         if buffer:
@@ -32,6 +54,10 @@ def readyQuitMessage(client_socket):
     return readyQuit
 
 def handleMessage(receivedData):
+    if receivedData["publicMsg"] == "SESSION FINISHED" or (receivedData["privateMsg"] == "SESSION FINISHED" and receivedData["userId"] == user_id):
+        print("A sessão que você estava conectado foi finalizada.")
+        return "SESSION FINISHED"
+
     if(receivedData["publicMsg"] != ""):
         print(receivedData["publicMsg"])
 
@@ -42,13 +68,12 @@ def handleMessage(receivedData):
             msg = msg.encode(FORMAT)
             client_socket.sendall(msg)
             
-            if msg == "quit":
-                return "quit"
+            if msg == "quit": return "quit"
         
         else:
             print(receivedData["privateMsg"])
     
-    elif receivedData["userId"] != "":
+    elif receivedData["userId"] != "" and receivedData["privateMsg"] != "":
         print('Esperando o próximo jogador')
 
 
@@ -56,35 +81,20 @@ def handleMessage(receivedData):
 def playMatch(client_socket):
     # Receving information about the game
 
-    returnValue = ""
-    while returnValue != "quit": 
-        buffer = None
-
-        while True:
-            buffer = client_socket.recv(BUFFER_SIZE).decode(FORMAT)
-            if buffer:
-                break
-
-        jsons = buffer.split('}')
-        jsons.pop(-1)
-        jsons = [add + '}' for add in jsons]
+    returnValueHandleMessage = ""
+    while returnValueHandleMessage != "quit" and returnValueHandleMessage != "SESSION FINISHED": 
+        
+        buffer = receiveMessage(client_socket)        
+        jsons = processJSON(buffer)
 
         for obj in jsons:
             receivedData = json.loads(obj)
-            returnValue = handleMessage(receivedData)
+            returnValueHandleMessage = handleMessage(receivedData)
             
-            if returnValue == "quit":
+            if returnValueHandleMessage == "quit" or returnValueHandleMessage == "SESSION FINISHED":
                 break
-
-
-def configNgrok(argv):
-    if len(argv) == 1: return 
-
-    ngrokPort = None
-    # try:
-    ngrokPort = int(argv[1])
-    global CLIENT_ADDR_PORT
-    CLIENT_ADDR_PORT = (NGROK_ADDR, ngrokPort)
+    
+    return returnValueHandleMessage
 
 
 def chooseSection(client_socket):
@@ -108,22 +118,24 @@ if __name__ == "__main__":
     
     # Defining the player's name
     name = input("Digite o seu nome: ")
-    
-    # Configuring a socket to use the protocol of internet and use the TCP
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(CLIENT_ADDR_PORT)
 
-    chooseSection(client_socket)
+    readyQuit = ""
+    while readyQuit != 'quit':
+        # Configuring a socket to use the protocol of internet and use the TCP
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(CLIENT_ADDR_PORT)
 
-    setPlayerName(client_socket, name)
+        chooseSection(client_socket)
+        sendPlayerNameToServer(client_socket, name)
+        receiveIdFromServer(client_socket)
 
-    # Receiving the id that the server is going ot generate to the current player
-    receiveId(client_socket)
+        readyQuit = readyQuitMessage(client_socket)
 
-    # Checking whether the player is ready to play or not
-    readyQuit = readyQuitMessage(client_socket)
-
-    if readyQuit == 'pronto':
-        playMatch(client_socket)
+        if readyQuit == 'pronto':
+            readyQuit = playMatch(client_socket)
         
-    client_socket.close()
+        print("Desconectando da sessão...")
+
+        client_socket.shutdown(socket.SHUT_RDWR)
+        client_socket.close()
+    

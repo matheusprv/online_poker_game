@@ -78,7 +78,7 @@ class Server:
         #Choosed session
         receivedValue = self.recvMessage(playerSocket)
         while not receivedValue.isnumeric():
-            errorMessage = f"Valor inválido.\nO número da sessão deve ser entre 1 e {self.maximunSessions}"
+            errorMessage = f"Valor inválido.\nO número da sessão deve ser entre 1 e {self.maximunSessions}: "
             msg = errorMessage.encode(FORMAT)
             playerSocket.sendall(msg)
             receivedValue = self.recvMessage(playerSocket)
@@ -105,14 +105,11 @@ class Server:
                 msg = "SESS NACK".encode(FORMAT)
                 playerSocket.sendall(msg)
 
-
-
     """
         Check what session the player will join and insert it to the player's stack of the session
     """
     def handleConnection(self, playerSocket):
         sessionNumber = self.validateSessionChoose(playerSocket)           
-        
         choosedSession = self.sessions[sessionNumber]      
         choosedSession.playersSocketStack.append(playerSocket)
         self.sessions[sessionNumber].event.set()

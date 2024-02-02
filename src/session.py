@@ -14,10 +14,9 @@ class Session:
         
         self.server_socket = main_socket
 
-        self.match = Match(id, self.sendMessage, self.recvMessage) 
+        self.match = Match(id, self.sendMessage, self.recvMessage, self.__quit) 
         self.numberOfPlayers = 0 
         self.playersSocketStack = []
-        self.sockets_ids = []
         self.event = threading.Event()
 
     """
@@ -36,12 +35,23 @@ class Session:
         After all of them are connected and checked as 'pronto' the game begins
     """
     def startGame(self) -> None:
-        print(f"Start game from session {self.sessionId}")
-        self.__playersConnection()
-        self.__checkAllPlayersStatus()
-        self.event.set() #Waking up the __handlePlayersConnection and finishing it
-        self.match.startGame()
-        print("Acabou a thread")
+        while True:
+            print(f"Start game from session {self.sessionId}")
+            self.__playersConnection()
+            self.__checkAllPlayersStatus()
+            self.event.set() #Waking up the __handlePlayersConnection and finishing it
+            self.match.startGame()
+            self.__tellPlayersEndOfSession()
+            self.__restartSession()
+
+    def __restartSession(self):
+        self.match.newMatch()
+        self.playersSocketStack = []
+        self.numberOfPlayers = 0
+
+    def __tellPlayersEndOfSession(self):
+        message = "SESSION FINISHED"
+        self.sendMessage(publicMsg = message)
 
     def __playersConnection(self):
         thread_conexoes = threading.Thread(target=self.__handlePlayersConnection)
@@ -53,7 +63,6 @@ class Session:
 
             while self.isPossibleToConnect() and len(self.playersSocketStack) > 0:
                 playerSocket = self.playersSocketStack.pop()
-                self.sockets_ids.append(playerSocket)
                 self.numberOfPlayers += 1
                 
                 thread = threading.Thread(target=self.__awaitsPlayerStatus, args=(playerSocket,))
@@ -108,7 +117,6 @@ class Session:
     def __quit(self, player) -> None:
         playerSocket = player.getSocket()
         with self.mutex:
-            self.sockets_ids.remove(playerSocket)
             self.numberOfPlayers -= 1
             
             playerSocket.shutdown(socket.SHUT_RDWR)
@@ -123,12 +131,10 @@ class Session:
         while self.match.checkReadyPlayers() == False:
             sleep(2)
 
-
     def searchPlayerBySocket(self, socketTarget) -> Player:
         for p in self.match.getPlayers():
             if p.getSocket() == socketTarget:
-                return p
-            
+                return p     
     
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
                 
@@ -144,13 +150,13 @@ class Session:
 
         players = self.match.getPlayers()
         for p in players:
+            if p.online == False: continue 
             try:
                 p.getSocket().sendall(msg) 
             except (ConnectionResetError):
                 print(f"O cliente {p.getName()} desconectou de forma inesperada")
-                self.__quit(p)
+                p.setOffline()
         sleep(0.2)  
-
 
     def recvMessage(self, socketTarget) -> str:
         while True:

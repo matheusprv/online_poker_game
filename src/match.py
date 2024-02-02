@@ -22,8 +22,15 @@ class Match:
         currentGmt = time.gmtime()
         return  calendar.timegm(currentGmt)
         
-    def __init__(self, matchId, sendMessage, recvMessage) -> None:
+    def __init__(self, matchId, sendMessage, recvMessage, quitPlayer) -> None:
         self.matchId = matchId
+        self.newMatch()
+
+        self.sendMessage = sendMessage
+        self.recvMessage = recvMessage
+        self.quitPlayer = quitPlayer
+
+    def newMatch(self):
         self.players = []
         self.plays = []
         self.initalTime = 0
@@ -33,14 +40,9 @@ class Match:
         self.deck = Deck()
         self.inProgress = False
 
-
-        self.sendMessage = sendMessage
-        self.recvMessage = recvMessage
-
     def coloredText(self, text, color) -> str:
         if color == GREEN: return "\033[92m" + text + "\033[0m"
         if color == RED:   return "\033[91m" + text + "\033[0m"
-
 
     def getPlayers(self):
         return self.players
@@ -49,6 +51,8 @@ class Match:
         self.players.append(newPlayer)
 
     def removePlayer(self, player) -> None:
+        if len(player.cards) > 0:
+            self.deck.returnCard(player.retriveCards())
         self.players.remove(player)
 
     def addPlay(self, player, action) -> None:
@@ -107,6 +111,17 @@ class Match:
                 activePlayers.append(player)
 
         return total, activePlayers[0] if total == 1 else None
+    
+    """
+        Return the total of players that are still onlin in the game
+    """
+    def totalOnlinePlayers(self) -> int:
+        total = 0
+        for player in self.getPlayers():
+            if player.isOnline(): 
+                total += 1
+
+        return total
 
     """
         Generate a string containing the community cards
@@ -146,6 +161,9 @@ class Match:
 
         return strCards
 
+    """
+        Restart the table putting the bucket in 0 and returning all the player's cards
+    """
     def resetTable(self) -> None:
         # Reset bucket
         self.bucket = 0
@@ -162,11 +180,14 @@ class Match:
             player.resetSelectedCards()
             if player.isActive():
                 self.deck.returnCard(player.retriveCards())
-            else:
+            elif player.isOnline():
                 player.setActive(True)                
                 
             if player.getChips() == 0:
                 self.removePlayer(player)
+
+    def returnPlayerCardsToDeck(self, player) -> None:
+        self.deck.returnCard(player.retriveCards())
 
     def flop_turn_river(self) -> None:
         totalComunnityCards = len(self.communityCards)
@@ -194,10 +215,11 @@ class Match:
 
     """
         Make Big blind and small blind bets
-        
-        bet : Value of the current bet
-        betBB : Big Blind bet
-        betSB : Small Blind bet
+        Return values:{
+            bet : Value of the current bet
+            betBB : Big Blind bet
+            betSB : Small Blind bet
+        }
     """
     def blindBet(self, playerSB, playerBB):
        
@@ -246,6 +268,8 @@ class Match:
             print(f"\tjogador {player.getName()}")
 
         for player in players:            
+            numberOfActivePlayers, _ = self.totalActivePlayers() 
+            if (numberOfActivePlayers == 1): break
             if(not player.isActive()): continue
 
             print(f"{player.getName()} fazendo a aposta")
@@ -253,7 +277,7 @@ class Match:
             # The player will make a decision to what he is going to do
             # If the action is to raise, but the player doesn't have enough chips, it will go to pay and will do an All-In
             action = '_'
-            validActions = ['f', 'p', 'r']
+            validActions = ['f', 'p', 'r', 'q']
             actionsText = f"{player.getName()} - Ações: \nF - Fold \nP - Pagar \nR - Aumentar"
 
             minimunBet = bet 
@@ -267,9 +291,13 @@ class Match:
                 validActions.append('c')
                 actionsText += "\nC - Check"
 
+            actionsText += "\nQ - Sair do jogo."
+
             # Loop until the user enters a valid action
             while(action not in validActions):
+                print(f"{player.getName()} - Online: {player.isOnline()} - Active: {player.isActive()}")
                 self.sendMessage(player, privateMsg= self.chipsInformations(player, self.bucket, bet) + actionsText + "\nOpção: ", waitingAnswer=True)
+                print("==============\n",f"esperando mensagem de {player.getName()}", "\n==============")
                 action = self.recvMessage(player.getSocket()).lower()
                 
                 if(action == 'r' and player.getChips() <= bet): action = 'p'
@@ -320,9 +348,14 @@ class Match:
                 
                 self.sendMessage(publicMsg = f"Jogador {player.getName()} aumentou a aposta para {bet_temp} fichas")
                 self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
-    
+            
+            elif action == "q":
+                self.addPlay(player, f"Saiu do jogo")
+                self.sendMessage(publicMsg = f"Jogador {player.getName()} saiu do jogo", player = player, privateMsg="SESSION FINISHED")
+                player.setOffline()
+
     """
-        Check if there is only one active player, if so, then it will receive the chips of the bucket
+        Check if there is only one active player or online, if so, then it will receive the chips of the bucket
         Return True if the match is finished. False otherwise
     """
     def checkTotalActivePlayers(self):
@@ -437,11 +470,16 @@ class Match:
 
         self.sendMessage(publicMsg= f"Ganhador: {player.getName()}")
 
+    def removeOfflinePlayers(self):
+        for player in self.getPlayers():
+            if not player.isOnline():
+                self.quitPlayer(player)
+
     def startGame(self) -> None:
         self.deck.shuffle()
         
         roundCounter = 1
-        while len(self.getPlayers()) > 1:
+        while self.totalOnlinePlayers() > 1:
 
             self.initalTime = self.getCurrentTimestamp()
             self.executeGame(roundCounter)
@@ -449,6 +487,7 @@ class Match:
 
             self.sendMessage(publicMsg = self.getReport())
 
+            self.removeOfflinePlayers()
             self.setInProgress(False)
             roundCounter += 1
             

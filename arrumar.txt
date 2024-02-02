@@ -1,2 +1,0 @@
-Quando for iniciar uma rodada que nao é a primeira, deve estar escrito apostar ao invés de aumentar
-Está aparecendo para pagar após a primeira rodada para o primeiro jogador

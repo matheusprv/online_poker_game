@@ -4,7 +4,7 @@ import calendar
 import time
 
 class Player:
-    def __init__(self, name, playerSocket = None, chips=1000) -> None:
+    def __init__(self, name, playerSocket = None, chips=1e4) -> None:
         self.name = name
         self.cards = []
         self.selectedCards = []
@@ -15,6 +15,7 @@ class Player:
         self.active = True
         self.gameFunction = None
         self.ready = False
+        self.online = True
 
         self.playerSocket = playerSocket
 
@@ -28,6 +29,13 @@ class Player:
     def isActive(self) -> bool:
         return self.active
     
+    def setOffline(self) -> None:
+        self.online = False
+        self.active = False
+
+    def isOnline(self) -> bool:
+        return self.online
+
     def getSocket(self):
         return self.playerSocket
     
