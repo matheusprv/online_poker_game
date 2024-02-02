@@ -1,13 +1,8 @@
-from itertools import cycle
+def reorganize_list(lst, N):
+    return lst[N:] + lst[:N]
 
-# Example list
-my_list = [1, 2, 3, 4, 5]
-
-# Create a cycle iterator from the list
-circular_iterator = cycle(my_list)
-
-# Iterate through the list indefinitely
-for _ in range(5):  # You can specify any number of iterations or use a while loop for indefinite iteration
-    next_element = next(circular_iterator)
-    print(next_element, my_list)
-    my_list.pop(0)
+# Example usage:
+original_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+N = 0  # N is the position until where you want to move the elements to the end
+reorganized_list = reorganize_list(original_list, N)
+print(reorganized_list)

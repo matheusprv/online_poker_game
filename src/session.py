@@ -19,7 +19,6 @@ class Session:
         self.playersSocketStack = []
         self.sockets_ids = []
         self.event = threading.Event()
-        self.keepAccepting = True
 
     """
         True if it is possible to connect
@@ -30,7 +29,6 @@ class Session:
             return True
         else:
             self.event.set()
-            self.keepAccepting = False
             return False
 
     """
@@ -41,19 +39,19 @@ class Session:
         print(f"Start game from session {self.sessionId}")
         self.__playersConnection()
         self.__checkAllPlayersStatus()
-        self.keepAccepting = False
         self.event.set() #Waking up the __handlePlayersConnection and finishing it
         self.match.startGame()
+        print("Acabou a thread")
 
     def __playersConnection(self):
         thread_conexoes = threading.Thread(target=self.__handlePlayersConnection)
         thread_conexoes.start()
 
     def __handlePlayersConnection(self):
-        while self.keepAccepting:
+        while True:
             if len(self.playersSocketStack) == 0: self.event.wait() # Await until there is a player in playersSocketStack
 
-            while self.keepAccepting and len(self.playersSocketStack) > 0:
+            while self.isPossibleToConnect() and len(self.playersSocketStack) > 0:
                 playerSocket = self.playersSocketStack.pop()
                 self.sockets_ids.append(playerSocket)
                 self.numberOfPlayers += 1
@@ -133,9 +131,7 @@ class Session:
             
     
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
-        
-        privateMessageOnly = True if privateMsg != "" and publicMsg == "" else False
-        
+                
         playerId = player.getId() if player != None else ""
         messageDict = {
             "userId": playerId,
@@ -147,15 +143,13 @@ class Session:
         msg = json.dumps(messageDict).encode(FORMAT)
 
         players = self.match.getPlayers()
-        if privateMessageOnly: players = [player]
-        else:
-            for p in players:
-                try:
-                    p.getSocket().sendall(msg) 
-                except (ConnectionResetError):
-                    print(f"O cliente {p.getName()} desconectou de forma inesperada")
-                    self.__quit(p)
-            sleep(0.2)  
+        for p in players:
+            try:
+                p.getSocket().sendall(msg) 
+            except (ConnectionResetError):
+                print(f"O cliente {p.getName()} desconectou de forma inesperada")
+                self.__quit(p)
+        sleep(0.2)  
 
 
     def recvMessage(self, socketTarget) -> str:

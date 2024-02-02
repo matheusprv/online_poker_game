@@ -4,6 +4,8 @@ import calendar
 import time
 from time import sleep
 from copy import copy
+from itertools import cycle, islice
+
 
 from constants import *
 
@@ -197,56 +199,53 @@ class Match:
         betBB : Big Blind bet
         betSB : Small Blind bet
     """
-    def blindBet(self, positionSB, positionBB):
-        players = self.getPlayers()
-        
+    def blindBet(self, playerSB, playerBB):
+       
         bet = 0        
-        player = players[positionBB]
-        playerSB = players[positionSB]
         while 1:
-
-            self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
-            text = self.coloredText("O valor deve ser um inteiro positivo", RED) + f"\n{player.getName()} - Qual será o valor da aposta inicial: "
-            bet = self.receiveNumericMessage(player, errorText= text)
+            self.sendMessage(playerBB, f"Big Blind {playerBB.getName()} definindo a aposta", self.chipsInformations(playerBB, self.bucket, bet) + f"{playerBB.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
+            text = self.coloredText("O valor deve ser um inteiro positivo", RED) + f"\n{playerBB.getName()} - Qual será o valor da aposta inicial: "
+            bet = self.receiveNumericMessage(playerBB, errorText= text)
             
-            if player.getChips() - bet >= 0 and bet > 1:
-                player.setChips(player.getChips() - bet)
+            if playerBB.getChips() - bet >= 0 and bet > 1:
+                playerBB.setChips(playerBB.getChips() - bet)
                 break
             else:
-                self.sendMessage(player, privateMsg=self.coloredText("Valor inválido da aposta", RED))
+                self.sendMessage(playerBB, privateMsg=self.coloredText("Valor inválido da aposta", RED))
 
         betBB = bet
         self.addToBucket(bet)
-        self.addPlay(player=player, action=f"Aposta:{bet}")
-        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {bet} fichas sendo o Big Blind.")
+        self.addPlay(player=playerBB, action=f"Aposta:{bet}")
+        self.sendMessage(publicMsg = f"Jogador {playerBB.getName()} apostou {bet} fichas sendo o Big Blind.")
 
         # Making small blind bet
         betSB = betBB // 2
-        player = playerSB
 
-        if player.getChips() - betSB > 0:
-            player.setChips(player.getChips() - betSB)
+        if playerSB.getChips() - betSB > 0:
+            playerSB.setChips(playerSB.getChips() - betSB)
             self.addToBucket(betSB)
         else:
-            self.addToBucket(player.getChips())
-            betSB = player.getChips()
-            player.setChips(0)
+            self.addToBucket(playerSB.getChips())
+            betSB = playerSB.getChips()
+            playerSB.setChips(0)
         
-        self.addPlay(player=player, action=f"Aposta:{betSB}")
-        self.sendMessage(publicMsg = f"Jogador {player.getName()} apostou {betSB} fichas sendo o Small Blind.")
+        self.addPlay(player=playerSB, action=f"Aposta:{betSB}")
+        self.sendMessage(publicMsg = f"Jogador {playerSB.getName()} apostou {betSB} fichas sendo o Small Blind.")
 
         return bet, betBB, betSB
 
     """
         Make all player's bet
     """
-    def betRound(self, countBetRound, position, positionBB, positionSB, bet, betBB, betSB) -> None:
-        players = self.getPlayers()
-        totalPlayers = len(players)
+    def betRound(self, countBetRound, position, playerBB, playerSB, bet, betBB, betSB) -> None:
+        
+        index = self.getPlayers().index(position)
+        print(index)
+        players = self.getPlayers()[index:] + self.getPlayers()[:index]
+        for player in players:
+            print(f"\tjogador {player.getName()}")
 
-        for _ in range(0, totalPlayers):
-            player = players[position]
-            
+        for player in players:            
             if(not player.isActive()): continue
 
             print(f"{player.getName()} fazendo a aposta")
@@ -260,11 +259,11 @@ class Match:
             minimunBet = bet 
 
             if countBetRound == 1:
-                if position == positionBB: minimunBet = bet - betBB 
-                elif position == positionSB: minimunBet = bet - betSB 
+                if player.getId() == playerBB.getId(): minimunBet = bet - betBB 
+                elif player.getId() == playerSB.getId(): minimunBet = bet - betSB 
 
             # If the user is BigBlind, he can check if the bet didn't raise                
-            if (position == positionBB and bet == betBB) or (countBetRound > 1 and bet == 0):
+            if (player.getId() == playerBB.getId() and bet == betBB) or (countBetRound > 1 and bet == 0):
                 validActions.append('c')
                 actionsText += "\nC - Check"
 
@@ -322,8 +321,6 @@ class Match:
                 self.sendMessage(publicMsg = f"Jogador {player.getName()} aumentou a aposta para {bet_temp} fichas")
                 self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
     
-            position = (position + 1) % totalPlayers    
-
     """
         Check if there is only one active player, if so, then it will receive the chips of the bucket
         Return True if the match is finished. False otherwise
@@ -347,15 +344,12 @@ class Match:
     """
         Distribute the initial cards among the players
     """
-    def distributeCards(self, positionSB):
-        players = self.getPlayers()
-        totalPlayers = len(players)
-        
-        position = positionSB
-        for _ in range(0, totalPlayers):
-            player = players[position % totalPlayers]
+    def distributeCards(self, playerSB):
+        index = self.getPlayers().index(playerSB)
+        players = self.getPlayers()[index:] + self.getPlayers()[:index]
+
+        for player in players:
             player.setCards(self.deck.distributeCards(2))
-            position += 1
 
             cardMessage = f"Cartas de {player.getName()}"
             for card in player.getCards():
@@ -469,28 +463,32 @@ class Match:
         #Defining who is going to be big blind and who is going to be the samll blind
         positionSB = roundCounter % len(players)
         positionBB = (positionSB + 1) % len(players)
+        playerSB = players[positionSB]
+        playerBB = players[positionBB]
 
         if self.checkTotalActivePlayers(): return 
         #make big blind and small blind bets'
-        bet, betBB, betSB = self.blindBet(positionSB, positionBB)
+        bet, betBB, betSB = self.blindBet(playerSB, playerBB)
         print("Blind bets feita")
 
         if self.checkTotalActivePlayers(): return 
         #Distribute cards
         print("Distribuindo cartas")
-        self.distributeCards(positionSB)
+        self.distributeCards(playerSB)
         print("Cartas distribuidas")
         sleep(0.2)
 
         if self.checkTotalActivePlayers(): return 
         #First bet round
-        position = (positionBB + 1)  % len(players)
-        self.betRound(1, position, positionBB, positionSB, bet, betBB, betSB)
+        nextPosition = players.index(playerBB) + 1
+        nextPosition = nextPosition if nextPosition < len(players) else 0
+        position = players[nextPosition]
+        self.betRound(1, position, playerBB, playerSB, bet, betBB, betSB)
 
         # Check if there is only one active player, if so, then it will receive the chips of the bucket
         if self.checkTotalActivePlayers(): return 
 
-        position = positionSB
+        playerPosition = playerSB
 
         """
             Making all betting rounds
@@ -502,7 +500,7 @@ class Match:
             self.sendMessage(publicMsg = communityCardsMessage)
 
             if self.checkTotalActivePlayers(): return 
-            self.betRound(i, position, positionBB, positionSB, 0, betBB, betSB)
+            self.betRound(i, playerPosition, playerBB, playerSB, 0, betBB, betSB)
 
             # Check if there is only one active player, if so, then it will receive the chips of the bucket
             if self.checkTotalActivePlayers(): return 
