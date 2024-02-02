@@ -6,7 +6,7 @@ from time import sleep
 
 class Session:
     mutex = threading.Lock()
-    MAXIMUM_NUMBER_OF_PLAYERS = 8
+    MAXIMUN_NUMBER_OF_PLAYERS = 8
     SESSION_IDS = 0
 
     def __init__(self, id, main_socket) -> None:
@@ -111,9 +111,9 @@ class Session:
         playerSocket = player.getSocket()
         with self.mutex:
             self.sockets_ids.remove(playerSocket)
-            numberOfPlayers -= 1
+            self.numberOfPlayers -= 1
             
-            playerSocket.shutdown(playerSocket.SHUT_RDWR)
+            playerSocket.shutdown(socket.SHUT_RDWR)
             playerSocket.close()
 
             self.match.removePlayer(player)
@@ -131,7 +131,11 @@ class Session:
             if p.getSocket() == socketTarget:
                 return p
             
+    
     def sendMessage(self, player = None, publicMsg = "", privateMsg = "", waitingAnswer = False) -> None:
+        
+        privateMessageOnly = True if privateMsg != "" and publicMsg == "" else False
+        
         playerId = player.getId() if player != None else ""
         messageDict = {
             "userId": playerId,
@@ -142,17 +146,20 @@ class Session:
 
         msg = json.dumps(messageDict).encode(FORMAT)
 
-        for p in self.match.getPlayers():
-            p.getSocket().sendall(msg) 
-        
-        sleep(0.2)  
+        players = self.match.getPlayers()
+        if privateMessageOnly: players = [player]
+        else:
+            for p in players:
+                try:
+                    p.getSocket().sendall(msg) 
+                except (ConnectionResetError):
+                    print(f"O cliente {p.getName()} desconectou de forma inesperada")
+                    self.__quit(p)
+            sleep(0.2)  
+
 
     def recvMessage(self, socketTarget) -> str:
         while True:
             buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
             if buffer:
-                if buffer == "quit":
-                    self.__quit(self.searchPlayerBySocket(socketTarget))
-
-                else:
-                    return buffer
+                return buffer

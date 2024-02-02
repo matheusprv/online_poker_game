@@ -86,18 +86,21 @@ def configNgrok(argv):
     global CLIENT_ADDR_PORT
     CLIENT_ADDR_PORT = (NGROK_ADDR, ngrokPort)
 
-    # except:
-    #     print("Não foi possível identificar a porta do NGrok.\nUsando a conexão local.")
-    #     return
 
 def chooseSection(client_socket):
     while True:
-        print("Aguardando")
         buffer = client_socket.recv(BUFFER_SIZE).decode(FORMAT)
         if buffer:
-            if buffer == "SESS ACK": break
-            sess = input(buffer)
-            client_socket.sendall(sess.encode(FORMAT))
+            if buffer == "SESS ACK": 
+                break
+            elif buffer == "SESS NACK":
+                print("Não foi possível se conectar à sessão, pois está cheia ou o jogo já começou.")
+                print("Selecione outra ou tente novamente mais tarde.")
+            else:
+                sess = input(buffer)
+                client_socket.sendall(sess.encode(FORMAT))
+
+
 
 if __name__ == "__main__":
     
@@ -112,11 +115,9 @@ if __name__ == "__main__":
 
     chooseSection(client_socket)
 
-    print("Enviando o nome")
     setPlayerName(client_socket, name)
 
     # Receiving the id that the server is going ot generate to the current player
-    print("Esperando pelo ID")
     receiveId(client_socket)
 
     # Checking whether the player is ready to play or not

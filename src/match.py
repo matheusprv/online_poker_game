@@ -91,7 +91,11 @@ class Match:
         output += "="*50 + "\n"
         return output
 
-    # Return the total of active players. If it is one, return the player, otherwise return None
+    
+    """
+        Return the total of active players. 
+        If it is one, return the player, otherwise return None
+    """
     def totalActivePlayers(self):
         total = 0
         activePlayers = []
@@ -102,6 +106,9 @@ class Match:
 
         return total, activePlayers[0] if total == 1 else None
 
+    """
+        Generate a string containing the community cards
+    """
     def strCommunityCards(self) -> str:
         strCards = ""
         for card in self.communityCards:
@@ -167,8 +174,11 @@ class Match:
             self.communityCards.append(newComunityCards)
 
 
+    """
+        Check if all the players on the match are "Pronto" 
+    """
     def checkReadyPlayers(self) -> bool:
-        print(f"Checando {len(self.getPlayers())} jogadores da partida {self.matchId}")
+        #print(f"Checando {len(self.getPlayers())} jogadores da partida {self.matchId}")
         
         if(len(self.getPlayers())) <= 1:
             return False
@@ -190,10 +200,10 @@ class Match:
     def blindBet(self, positionSB, positionBB):
         players = self.getPlayers()
         
-        bet = 0
-        player = None
+        bet = 0        
+        player = players[positionBB]
+        playerSB = players[positionSB]
         while 1:
-            player = players[positionBB]
 
             self.sendMessage(player, f"Big Blind {player.getName()} definindo a aposta", self.chipsInformations(player, self.bucket, bet) + f"{player.getName()} - Qual será o valor da aposta inicial: ", waitingAnswer=True)
             text = self.coloredText("O valor deve ser um inteiro positivo", RED) + f"\n{player.getName()} - Qual será o valor da aposta inicial: "
@@ -212,7 +222,7 @@ class Match:
 
         # Making small blind bet
         betSB = betBB // 2
-        player = players[positionSB]
+        player = playerSB
 
         if player.getChips() - betSB > 0:
             player.setChips(player.getChips() - betSB)
@@ -414,14 +424,14 @@ class Match:
     """
     def checkWinner(self):
         players = self.getPlayers()
-        winner = players[0]
-        winner.defeats += 1
-        winnerCardPoints = winner.countCardsPoints()
+        winner = None
+        winnerCardPoints = -1
 
-        for player in players[1:]:
+        for player in players:
             player.defeats += 1
+            if not player.isActive: continue
             playerCardPoints = player.countCardsPoints()
-            if player.isActive and playerCardPoints > winnerCardPoints:
+            if playerCardPoints > winnerCardPoints:
                 winner = player
                 winnerCardPoints = playerCardPoints
 
@@ -455,24 +465,26 @@ class Match:
         
         self.setInProgress(True)
         players = self.getPlayers()
-        totalPlayers = len(players)
 
         #Defining who is going to be big blind and who is going to be the samll blind
-        positionSB = roundCounter % totalPlayers
-        positionBB = (positionSB + 1) % totalPlayers
+        positionSB = roundCounter % len(players)
+        positionBB = (positionSB + 1) % len(players)
 
+        if self.checkTotalActivePlayers(): return 
         #make big blind and small blind bets'
         bet, betBB, betSB = self.blindBet(positionSB, positionBB)
         print("Blind bets feita")
 
+        if self.checkTotalActivePlayers(): return 
         #Distribute cards
         print("Distribuindo cartas")
         self.distributeCards(positionSB)
         print("Cartas distribuidas")
         sleep(0.2)
 
+        if self.checkTotalActivePlayers(): return 
         #First bet round
-        position = (positionBB + 1)  % totalPlayers
+        position = (positionBB + 1)  % len(players)
         self.betRound(1, position, positionBB, positionSB, bet, betBB, betSB)
 
         # Check if there is only one active player, if so, then it will receive the chips of the bucket
@@ -489,6 +501,7 @@ class Match:
             communityCardsMessage = "Cartas Comunitárias" + self.strCommunityCards()
             self.sendMessage(publicMsg = communityCardsMessage)
 
+            if self.checkTotalActivePlayers(): return 
             self.betRound(i, position, positionBB, positionSB, 0, betBB, betSB)
 
             # Check if there is only one active player, if so, then it will receive the chips of the bucket
