@@ -53,7 +53,7 @@ class Server:
         Receive a message from the client and return what is the message
         The loop is used in case an empty message arrive
     """
-    def recvMessage(self, socketTarget) -> str:
+    def recveiveMessage(self, socketTarget) -> str:
         while True:
             buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
             if buffer: return buffer
@@ -76,12 +76,12 @@ class Server:
         playerSocket.sendall(msg)
         
         #Choosed session
-        receivedValue = self.recvMessage(playerSocket)
+        receivedValue = self.recveiveMessage(playerSocket)
         while not receivedValue.isnumeric():
             errorMessage = f"Valor inválido.\nO número da sessão deve ser entre 1 e {self.maximunSessions}: "
             msg = errorMessage.encode(FORMAT)
             playerSocket.sendall(msg)
-            receivedValue = self.recvMessage(playerSocket)
+            receivedValue = self.recveiveMessage(playerSocket)
         return int(receivedValue)
 
 
@@ -109,7 +109,11 @@ class Server:
         Check what session the player will join and insert it to the player's stack of the session
     """
     def handleConnection(self, playerSocket):
-        sessionNumber = self.validateSessionChoose(playerSocket)           
+        sessionNumber = 1
+        try:
+            sessionNumber = self.validateSessionChoose(playerSocket)           
+        except (ConnectionResetError):
+            return
         choosedSession = self.sessions[sessionNumber]      
         choosedSession.playersSocketStack.append(playerSocket)
         self.sessions[sessionNumber].event.set()

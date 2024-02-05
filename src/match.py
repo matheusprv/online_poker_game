@@ -141,6 +141,8 @@ class Match:
             self.sendMessage(player, privateMsg = errorText, waitingAnswer=True)
             receivedValue = self.recvMessage(player.getSocket())
 
+        if receivedValue == '-1': receivedValue = '0'
+
         return int(receivedValue)
 
     """
@@ -232,6 +234,9 @@ class Match:
             if playerBB.getChips() - bet >= 0 and bet > 1:
                 playerBB.setChips(playerBB.getChips() - bet)
                 break
+            elif not playerBB.isOnline():
+                bet = 0
+                break
             else:
                 self.sendMessage(playerBB, privateMsg=self.coloredText("Valor inválido da aposta", RED))
 
@@ -277,7 +282,7 @@ class Match:
             # The player will make a decision to what he is going to do
             # If the action is to raise, but the player doesn't have enough chips, it will go to pay and will do an All-In
             action = '_'
-            validActions = ['f', 'p', 'r', 'q']
+            validActions = ['f', 'p', 'r', 'q', '-1']
             actionsText = f"{player.getName()} - Ações: \nF - Fold \nP - Pagar \nR - Aumentar"
 
             minimunBet = bet 
@@ -349,7 +354,7 @@ class Match:
                 self.sendMessage(publicMsg = f"Jogador {player.getName()} aumentou a aposta para {bet_temp} fichas")
                 self.sendMessage(publicMsg = f"Bucket: {self.bucket}")
             
-            elif action == "q":
+            elif action == "q" or action == '-1':
                 self.addPlay(player, f"Saiu do jogo")
                 self.sendMessage(publicMsg = f"Jogador {player.getName()} saiu do jogo", player = player, privateMsg="SESSION FINISHED")
                 player.setOffline()
@@ -456,7 +461,7 @@ class Match:
 
         for player in players:
             player.defeats += 1
-            if not player.isActive: continue
+            if not player.isActive(): continue
             playerCardPoints = player.countCardsPoints()
             if playerCardPoints > winnerCardPoints:
                 winner = player

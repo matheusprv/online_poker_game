@@ -80,6 +80,8 @@ class Session:
         # Esperar pelo nome do usuario
         name = self.recvMessage(playerSocket)
 
+        if name == -1: return
+
         # Send user id
         player = Player(name, playerSocket)
         with self.mutex:
@@ -159,7 +161,12 @@ class Session:
         sleep(0.2)  
 
     def recvMessage(self, socketTarget) -> str:
-        while True:
-            buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
-            if buffer:
-                return buffer
+        try:
+            while True:
+                buffer = socketTarget.recv(BUFFER_SIZE).decode(FORMAT)
+                if buffer:
+                    return buffer
+        except (ConnectionResetError):
+            player = self.searchPlayerBySocket(socketTarget)
+            player.setOffline()
+            return '-1'
