@@ -77,8 +77,8 @@ def handleMessage(receivedData):
         else:
             print(receivedData["privateMsg"])
     
-    elif receivedData["userId"] != "" and receivedData["privateMsg"] != "":
-        print('Esperando o próximo jogador')
+    # elif receivedData["userId"] != "" and receivedData["privateMsg"] != "":
+    #     print('Esperando o próximo jogador')
 
 
 # Play the match 

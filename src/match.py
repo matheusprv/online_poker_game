@@ -78,7 +78,8 @@ class Match:
         Generate a report with all the plays from the game and wins/defeats from each player
     """
     def getReport(self) -> str:
-        report = "\nJogadas:\n"
+        report = "="*50
+        report += "\nJogadas:\n"
         for play in self.plays:
             report += f"{play[0]} - {play[1]}\n"
         
@@ -86,7 +87,9 @@ class Match:
         
         report += "\n\n"
         for player in self.players:
-            report += f"{player.getName()}:\n\tVitórias: {player.getWins()}\n\tDerrotas: {player.getDefeats()}\n"
+            report += f"{player.getName()}:\n\tVitórias: {player.getWins()}\n\tDerrotas: {player.getDefeats()}\n\tFichas: {player.getChips()}\n"
+
+        report += "="*50
 
         return report
 
@@ -501,7 +504,9 @@ class Match:
         
         roundCounter = 1
         while self.totalOnlinePlayers() > 1:
-
+            self.resetTable()
+            
+            if self.totalOnlinePlayers() <= 1: break
             #Starting and finishing a match
             self.initalTime = self.getCurrentTimestamp()
             self.executeGame(roundCounter)
@@ -510,7 +515,7 @@ class Match:
             # Sending the report to all players
             self.sendMessage(publicMsg = self.getReport())
 
-            sleep(3)
+            sleep(1)
             self.resetTable()
             self.removeOfflinePlayers()
             self.setInProgress(False)
@@ -577,6 +582,4 @@ class Match:
 
         # Check what is the player with the highest pontuation
         self.checkWinner()
-
-        #self.resetTable()
 
