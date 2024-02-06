@@ -7,7 +7,6 @@ import threading
 class Server:
 
     def __init__(self, maximunSessions = 4) -> None:
-        self.sessionsThreads = []
         self.sessions = []
         self.maximunSessions = maximunSessions
         self.createServer()
@@ -46,7 +45,6 @@ class Server:
         for sess in self.sessions:
             thTemp = threading.Thread(target=sess.startGame)
             thTemp.start()
-            self.sessionsThreads.append(thTemp)
 
 
     """
@@ -93,9 +91,11 @@ class Server:
     def validateSessionChoose(self, playerSocket):
         while True:
             sessionNumber = -1
-            while sessionNumber < 0 or sessionNumber > self.maximunSessions:
+            while sessionNumber < 0 or sessionNumber >= self.maximunSessions:
                 sessionNumber = self.receiveNumericSessionNumber(playerSocket) - 1
             
+            print(f"Número da sessão: {sessionNumber}")
+
             if self.sessions[sessionNumber].isPossibleToConnect():
                 msg = "SESS ACK".encode(FORMAT)
                 playerSocket.sendall(msg)

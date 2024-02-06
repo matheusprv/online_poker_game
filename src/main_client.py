@@ -57,6 +57,10 @@ def handleMessage(receivedData):
     if receivedData["publicMsg"] == "SESSION FINISHED" or (receivedData["privateMsg"] == "SESSION FINISHED" and receivedData["userId"] == user_id):
         print("A sessão que você estava conectado foi finalizada.")
         return "SESSION FINISHED"
+    if receivedData["privateMsg"] == "SESSION REMOVED" and receivedData["userId"] == user_id:
+        print("Você foi removido da sessão pois ficou sem fichas")
+        return "SESSION FINISHED"
+
 
     if(receivedData["publicMsg"] != ""):
         print(receivedData["publicMsg"])
@@ -138,4 +142,6 @@ if __name__ == "__main__":
 
         client_socket.shutdown(socket.SHUT_RDWR)
         client_socket.close()
-    
+
+        if readyQuit != "quit":
+            sleep(1)

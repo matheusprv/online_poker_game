@@ -50,9 +50,13 @@ class Match:
     def addPlayer(self, newPlayer) -> None:
         self.players.append(newPlayer)
 
+    """
+        Remove a player from the array of players. Used when the player ran out of chips
+    """
     def removePlayer(self, player) -> None:
         if len(player.cards) > 0:
             self.deck.returnCard(player.retriveCards())
+        self.sendMessage(player=player, privateMsg="SESSION REMOVED")
         self.players.remove(player)
 
     def addPlay(self, player, action) -> None:
@@ -140,6 +144,8 @@ class Match:
         while not receivedValue.isnumeric():
             self.sendMessage(player, privateMsg = errorText, waitingAnswer=True)
             receivedValue = self.recvMessage(player.getSocket())
+            if receivedValue == '-1':
+                break
 
         if receivedValue == '-1': receivedValue = '0'
 
@@ -165,6 +171,7 @@ class Match:
 
     """
         Restart the table putting the bucket in 0 and returning all the player's cards
+        Players that are inactive will now become active
     """
     def resetTable(self) -> None:
         # Reset bucket
@@ -184,8 +191,9 @@ class Match:
                 self.deck.returnCard(player.retriveCards())
             elif player.isOnline():
                 player.setActive(True)                
-                
-            if player.getChips() == 0:
+            
+            print(f"{player.getName()} - chips: {player.getChips()}")
+            if player.getChips() == 0.0 or player.getChips() == 0:
                 self.removePlayer(player)
 
     def returnPlayerCardsToDeck(self, player) -> None:
@@ -235,6 +243,8 @@ class Match:
                 playerBB.setChips(playerBB.getChips() - bet)
                 break
             elif not playerBB.isOnline():
+                self.addPlay(player=playerBB, action=f"{playerBB.getName()} saiu da partida")
+                self.sendMessage(publicMsg = f"{playerBB.getName()} saiu da partida")
                 bet = 0
                 break
             else:
@@ -267,10 +277,9 @@ class Match:
     def betRound(self, countBetRound, position, playerBB, playerSB, bet, betBB, betSB) -> None:
         
         index = self.getPlayers().index(position)
-        print(index)
         players = self.getPlayers()[index:] + self.getPlayers()[:index]
         for player in players:
-            print(f"\tjogador {player.getName()}")
+            print(f"\tjogador {player.getName()} - Ativo: {player.isActive()}")
 
         for player in players:            
             numberOfActivePlayers, _ = self.totalActivePlayers() 
@@ -300,12 +309,12 @@ class Match:
 
             # Loop until the user enters a valid action
             while(action not in validActions):
-                print(f"{player.getName()} - Online: {player.isOnline()} - Active: {player.isActive()}")
                 self.sendMessage(player, privateMsg= self.chipsInformations(player, self.bucket, bet) + actionsText + "\nOpção: ", waitingAnswer=True)
-                print("==============\n",f"esperando mensagem de {player.getName()}", "\n==============")
                 action = self.recvMessage(player.getSocket()).lower()
                 
                 if(action == 'r' and player.getChips() <= bet): action = 'p'
+
+            print(f"{player.getName()} - {action}")
 
             if action == "f":
                 # The player retrive the cards to the deck and become inactive
@@ -344,6 +353,11 @@ class Match:
                     if player.getChips() - bet_temp >= 0 and bet_temp > minimunBet:
                         player.setChips(player.getChips() - bet_temp)
                         break
+                    elif not player.isOnline():
+                        self.addPlay(player=player, action=f"{player.getName()} saiu da partida")
+                        self.sendMessage(publicMsg = f"{player.getName()} saiu da partida")
+                        bet_temp = 0
+                        break
                     else:
                         self.sendMessage(player, privateMsg=self.coloredText("Valor inválido da aposta", RED))
                         
@@ -357,6 +371,8 @@ class Match:
             elif action == "q" or action == '-1':
                 self.addPlay(player, f"Saiu do jogo")
                 self.sendMessage(publicMsg = f"Jogador {player.getName()} saiu do jogo", player = player, privateMsg="SESSION FINISHED")
+                
+                self.deck.returnCard(player.retriveCards())
                 player.setOffline()
 
     """
@@ -374,7 +390,7 @@ class Match:
                 if p != player:
                     p.defeats += 1
 
-            self.resetTable()
+            #self.resetTable()
             return True
         
         return False
@@ -419,7 +435,7 @@ class Match:
             for i in range(5):
                 self.sendMessage(
                     player, 
-                    f"Jogador {player.getName()} selecionando a carta {i+1}.", selectionCardMessage,
+                    f"Jogador {player.getName()} selecionando a {i+1}ª carta.", selectionCardMessage,
                     waitingAnswer=True
                 )
                 select = self.receiveNumericMessage(player, self.coloredText("O valor deve ser um inteiro positivo", RED) + "\n" + selectionCardMessage)
@@ -486,16 +502,19 @@ class Match:
         roundCounter = 1
         while self.totalOnlinePlayers() > 1:
 
+            #Starting and finishing a match
             self.initalTime = self.getCurrentTimestamp()
             self.executeGame(roundCounter)
             self.finalTime = self.getCurrentTimestamp()
 
+            # Sending the report to all players
             self.sendMessage(publicMsg = self.getReport())
 
+            sleep(3)
+            self.resetTable()
             self.removeOfflinePlayers()
             self.setInProgress(False)
             roundCounter += 1
-            
     """
         Execute a gaming round
     """
@@ -559,5 +578,5 @@ class Match:
         # Check what is the player with the highest pontuation
         self.checkWinner()
 
-        self.resetTable()
+        #self.resetTable()
 
